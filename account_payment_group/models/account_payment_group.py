@@ -3,7 +3,8 @@
 
 from odoo import models, api, fields, _
 from odoo.exceptions import ValidationError
-
+import logging
+_logger = logging.getLogger(__name__)
 
 MAP_PARTNER_TYPE_ACCOUNT_TYPE = {
     'customer': 'receivable',
@@ -197,10 +198,10 @@ class AccountPaymentGroup(models.Model):
         string='Payment Lines',
         ondelete='cascade',
         copy=False,
-        readonly=True,
-        states={
-            'draft': [('readonly', False)],
-            'confirmed': [('readonly', False)]},
+        # readonly=False,
+        # states={
+        #    'draft': [('readonly', False)],
+        #    'confirmed': [('readonly', False)]},
         auto_join=True,
     )
     account_internal_type = fields.Char(
@@ -324,6 +325,50 @@ class AccountPaymentGroup(models.Model):
             'context': ctx,
         }
 
+    def action_register_payment(self):
+        # si self.to_pay_move_line_ids uso el modelo account.payment.register, para tener el wizard
+        # sino uso account.payment
+        # No se si me da una ventaja esto
+
+        ''' Open the account.payment.register wizard to pay the selected journal entries.
+        :return: An action opening the account.payment.register wizard.
+        '''
+        if len(self.to_pay_move_line_ids):
+            return {
+                'name': _('Register Payment'),
+                'res_model': 'account.payment.register',
+                'view_mode': 'form',
+                'context': {
+                    'default_payment_group_id': self.id,
+                    'default_payment_group_company_id': self.company_id.id,
+                    'default_payment_type': self.partner_type == 'supplier' and 'outbound' or 'inbound',
+                    'default_payment_date': self.payment_date,
+                    'default_partner_id': self.partner_id.id,
+                    'payment_group': True,
+                    'active_model': 'account.move.line',
+                    'active_ids': self.to_pay_move_line_ids.ids,
+                },
+                'target': 'new',
+                'type': 'ir.actions.act_window',
+            }
+        else:
+            return {
+                'name': _('Register Payment'),
+                'res_model': 'account.payment',
+                'view_mode': 'form',
+                'context': {
+                    'default_payment_group_id': self.id,
+                    'default_payment_group_company_id': self.company_id.id,
+                    'default_payment_type': self.partner_type == 'supplier' and 'outbound' or 'inbound',
+                    'default_payment_date': self.payment_date,
+                    'default_partner_id': self.partner_id.id,
+                    'payment_group': True,
+                },
+                'target': 'new',
+                'type': 'ir.actions.act_window',
+            }
+
+
     def payment_print(self):
         self.ensure_one()
         self.sent = True
@@ -351,7 +396,7 @@ class AccountPaymentGroup(models.Model):
                 payment_subtype = 'simple'
             rec.payment_subtype = payment_subtype
 
-    @api.depends('payment_ids.move_line_ids')
+    @api.depends('payment_ids.line_ids')
     def _compute_matched_move_line_ids(self):
         """
         Lar partial reconcile vinculan dos apuntes con credit_move_id y
@@ -364,7 +409,7 @@ class AccountPaymentGroup(models.Model):
         for rec in self:
             lines = rec.move_line_ids.browse()
             # not sure why but self.move_line_ids dont work the same way
-            payment_lines = rec.payment_ids.mapped('move_line_ids')
+            payment_lines = rec.payment_ids.mapped('line_ids')
 
             reconciles = rec.env['account.partial.reconcile'].search([
                 ('credit_move_id', 'in', payment_lines.ids)])
@@ -376,10 +421,10 @@ class AccountPaymentGroup(models.Model):
 
             rec.matched_move_line_ids = lines - payment_lines
 
-    @api.depends('payment_ids.move_line_ids')
+    @api.depends('payment_ids.line_ids')
     def _compute_move_lines(self):
         for rec in self:
-            rec.move_line_ids = rec.payment_ids.mapped('move_line_ids')
+            rec.move_line_ids = rec.payment_ids.mapped('line_ids')
 
     @api.depends('partner_type')
     def _compute_account_internal_type(self):
@@ -580,9 +625,9 @@ class AccountPaymentGroup(models.Model):
             # al crear desde website odoo crea primero el pago y lo postea
             # y no debemos re-postearlo
             if not create_from_website and not create_from_expense:
-                rec.payment_ids.filtered(lambda x: x.state == 'draft').post()
+                rec.payment_ids.filtered(lambda x: x.state == 'draft').action_post()
 
-            counterpart_aml = rec.payment_ids.mapped('move_line_ids').filtered(
+            counterpart_aml = rec.payment_ids.mapped('line_ids').filtered(
                 lambda r: not r.reconciled and r.account_id.internal_type in (
                     'payable', 'receivable'))
 

@@ -14,15 +14,15 @@
             <field name="journal_id" options='{"no_open":True}'/>
             <field name="name"/>
             <field name="ref"/>
-            <field name="statement_id" invisible="1"/>
+            <field name="statement_id" attrs="{'invisible':True}"/>
             <field name="account_id" options='{"no_open":True}' domain="[('company_id', '=', company_id)]"/>
             <field name="balance" string="Amount"/>
             <field name="amount_residual" sum="Total"/>
             <field name="amount_currency" groups="base.group_multi_currency"/>
             <field name="amount_residual_currency" groups="base.group_multi_currency"/>
-            <field name="currency_id" invisible="1"/>
-            <field name="company_currency_id" invisible="1"/>
-            <field name="company_id" invisible="1"/>
+            <field name="currency_id" attrs="{'invisible':True}"/>
+            <field name="company_currency_id" attrs="{'invisible':True}"/>
+            <field name="company_id" attrs="{'invisible':True}"/>
             <button type="object" string="Open Document" icon="fa-external-link" help="Open Related Document" name="action_open_related_document"/>
         </tree>
     </field>
@@ -52,8 +52,8 @@
     <field name="arch" type="xml">
         <group id="header_left_group">
             <!-- only allow pay now if manual method available -->
-            <field name="pay_now_journal_id" attrs="{'invisible': [('type', 'not in', ('in_invoice', 'in_refund'))]}" options="{'no_create': True}" domain="[('company_id', '=', company_id), ('type', 'in', ['bank', 'cash']), ('outbound_payment_method_ids.code', '=', 'manual')]" groups="account_payment_group.group_pay_now_vendor_invoices"/>
-            <field name="pay_now_journal_id" attrs="{'invisible': [('type', 'not in', ('out_invoice', 'out_refund'))]}" options="{'no_create': True}" domain="[('company_id', '=', company_id), ('type', 'in', ['bank', 'cash']), ('inbound_payment_method_ids.code', '=', 'manual')]" groups="account_payment_group.group_pay_now_customer_invoices"/>
+            <field name="pay_now_journal_id" attrs="{'invisible': [('move_type', 'not in', ('in_invoice', 'in_refund'))]}" options="{'no_create': True}" domain="[('company_id', '=', company_id), ('type', 'in', ['bank', 'cash']), ('outbound_payment_method_ids.code', '=', 'manual')]" groups="account_payment_group.group_pay_now_vendor_invoices"/>
+            <field name="pay_now_journal_id" attrs="{'invisible': [('move_type', 'not in', ('out_invoice', 'out_refund'))]}" options="{'no_create': True}" domain="[('company_id', '=', company_id), ('type', 'in', ['bank', 'cash']), ('inbound_payment_method_ids.code', '=', 'manual')]" groups="account_payment_group.group_pay_now_customer_invoices"/>
         </group>
 
         <button id="account_invoice_payment_btn" position="attributes">
@@ -61,7 +61,7 @@
         </button>
 
         <field name="invoice_payments_widget" position="after">
-            <field name="payment_group_ids" invisible="1"/>
+            <field name="payment_group_ids" attrs="{'invisible':True}"/>
             <button type="object"  name="action_view_payment_groups"
                     class="oe_link" string="View Payments"
                     colspan="2"

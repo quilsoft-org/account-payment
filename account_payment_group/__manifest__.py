@@ -2,10 +2,10 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 {
     "name": "Account Payment with Multiple methods",
-    "version": "13.0.1.6.0",
+    "version": "14.0.1.0.0",
     "category": "Accounting",
     "website": "www.adhoc.com.ar",
-    "author": "ADHOC SA, AITIC S.A.S",
+    "author": "ADHOC SA, AITIC S.A.S, QUILSOFT",
     "license": "AGPL-3",
     "application": False,
     'installable': True,
@@ -16,7 +16,8 @@
     "depends": [
         "account_financial_amount",
         # for fixes related to domains and company_id field on form view
-        "account_payment_fix",
+        # "account_payment_fix",
+        # por ahora saco esto hasta releer el codigo de payment
         "account_ux",
     ],
     "data": [

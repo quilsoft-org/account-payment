@@ -8,6 +8,58 @@ import logging
 _logger = logging.getLogger(__name__)
 
 
+class AccountPaymentRegister(models.TransientModel):
+    _inherit = 'account.payment.register'
+    payment_group_id = fields.Many2one(
+        'account.payment.group',
+        'Payment Group',
+        readonly=True,
+    )
+    payment_group_company_id = fields.Many2one(
+        related='payment_group_id.company_id',
+        string='Payment Group Company',
+    )
+    payment_type_copy = fields.Selection(
+        selection=[('outbound', 'Send Money'), ('inbound', 'Receive Money')],
+        compute='_compute_payment_type_copy',
+        inverse='_inverse_payment_type_copy',
+        string='Payment Type (without transfer)'
+    )
+
+    @api.onchange('payment_type_copy')
+    def _inverse_payment_type_copy(self):
+        for rec in self:
+            # if false, then it is a transfer
+            rec.payment_type = (
+                rec.payment_type_copy and rec.payment_type_copy or 'transfer')
+
+    @api.depends('payment_type')
+    def _compute_payment_type_copy(self):
+        for rec in self:
+            if rec.payment_type == 'transfer':
+                rec.payment_type_copy = False
+            else:
+                rec.payment_type_copy = rec.payment_type
+
+    def _create_payment_vals_from_wizard(self):
+        payment_vals = super()._create_payment_vals_from_wizard()
+        payment_vals['payment_group_id'] = self.payment_group_id.id
+        payment_vals['payment_group_company_id'] = self.payment_group_company_id.id
+        payment_vals['payment_type_copy'] = self.payment_type_copy
+
+        return payment_vals
+
+    @api.onchange('payment_type')
+    def _onchange_payment_type(self):
+        """
+        we disable change of partner_type if we came from a payment_group
+        but we still reset the journal
+        """
+        if not self._context.get('payment_group'):
+            return super(AccountPayment, self)._onchange_payment_type()
+        self.journal_id = False
+
+
 class AccountPayment(models.Model):
     _inherit = "account.payment"
 
@@ -295,7 +347,7 @@ class AccountPayment(models.Model):
             payment.payment_group_id.post()
         return payment
 
-    @api.depends('invoice_ids', 'payment_type', 'partner_type', 'partner_id')
+    @api.depends('journal_id', 'partner_id', 'partner_type', 'is_internal_transfer')
     def _compute_destination_account_id(self):
         """
         If we are paying a payment gorup with paylines, we use account
