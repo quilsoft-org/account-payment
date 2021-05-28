@@ -16,8 +16,7 @@
     "depends": [
         "account_financial_amount",
         # for fixes related to domains and company_id field on form view
-        # "account_payment_fix",
-        # por ahora saco esto hasta releer el codigo de payment
+        "account_payment_fix",
         "account_ux",
     ],
     "data": [

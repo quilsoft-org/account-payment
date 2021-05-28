@@ -32,8 +32,8 @@
         # for payment method description and company_id field on form view
         'account_payment_fix',
     ],
-    'installable': False,
+    'installable': True,
     'name': 'Withholdings on Payments',
     'test': [],
-    'version': "13.0.1.1.0",
+    'version': "14.0.1.0.0",
 }

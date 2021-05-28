@@ -34,12 +34,12 @@ class AccountMove(models.Model):
                 deferred_account_line.remove_move_reconcile()
         return super().button_draft()
 
-    def post(self):
+    def action_post(self):
         """
         Si al validar la factura, la misma tiene un cheque de rechazo asociado
         intentamos concilarlo
         """
-        res = super().post()
+        res = super().action_post()
         for rec in self.filtered('rejected_check_id'):
             check = rec.rejected_check_id
             if check.state == 'rejected' and check.type == 'issue_check':

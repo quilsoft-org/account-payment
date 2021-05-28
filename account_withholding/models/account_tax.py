@@ -9,6 +9,7 @@ class AccountTaxTemplate(models.Model):
             ('customer', 'Customer Payment'),
             ('supplier', 'Supplier Payment'),
         ],
+        ondelete={'customer': 'cascade', 'supplier': 'cascade'}
     )
 
 
@@ -23,6 +24,7 @@ class AccountTax(models.Model):
             ('customer', 'Customer Payment'),
             ('supplier', 'Supplier Payment'),
         ],
+        ondelete={'customer': 'cascade', 'supplier': 'cascade'}
     )
     amount = fields.Float(
         default=0.0,
