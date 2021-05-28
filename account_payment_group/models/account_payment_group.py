@@ -39,7 +39,7 @@ class AccountPaymentGroup(models.Model):
     )
     partner_type = fields.Selection(
         [('customer', 'Customer'), ('supplier', 'Vendor')],
-        track_visibility='always',
+        track=True,
         change_default=True,
     )
     partner_id = fields.Many2one(
@@ -48,7 +48,7 @@ class AccountPaymentGroup(models.Model):
         required=True,
         readonly=True,
         states={'draft': [('readonly', False)]},
-        track_visibility='always',
+        track=True,
         change_default=True,
         index=True,
     )
@@ -62,7 +62,7 @@ class AccountPaymentGroup(models.Model):
         default=lambda self: self.env.company.currency_id,
         readonly=True,
         states={'draft': [('readonly', False)]},
-        track_visibility='always',
+        track=True,
     )
     payment_date = fields.Date(
         string='Payment Date',
@@ -120,12 +120,12 @@ class AccountPaymentGroup(models.Model):
         # string='Total To Pay Amount',
         readonly=True,
         states={'draft': [('readonly', False)]},
-        track_visibility='always',
+        track=True,
     )
     payments_amount = fields.Monetary(
         compute='_compute_payments_amount',
         string='Amount',
-        track_visibility='always',
+        track=True,
     )
     state = fields.Selection([
         ('draft', 'Draft'),
@@ -139,7 +139,7 @@ class AccountPaymentGroup(models.Model):
         default='draft',
         copy=False,
         string="Status",
-        track_visibility='onchange',
+        track=True,
         index=True,
     )
     has_outstanding = fields.Boolean(
@@ -332,7 +332,6 @@ class AccountPaymentGroup(models.Model):
 
         ''' Open the account.payment.register wizard to pay the selected journal entries.
         :return: An action opening the account.payment.register wizard.
-        '''
         if len(self.to_pay_move_line_ids):
             return {
                 'name': _('Register Payment'),
@@ -352,21 +351,23 @@ class AccountPaymentGroup(models.Model):
                 'type': 'ir.actions.act_window',
             }
         else:
-            return {
-                'name': _('Register Payment'),
-                'res_model': 'account.payment',
-                'view_mode': 'form',
-                'context': {
-                    'default_payment_group_id': self.id,
-                    'default_payment_group_company_id': self.company_id.id,
-                    'default_payment_type': self.partner_type == 'supplier' and 'outbound' or 'inbound',
-                    'default_payment_date': self.payment_date,
-                    'default_partner_id': self.partner_id.id,
-                    'payment_group': True,
-                },
-                'target': 'new',
-                'type': 'ir.actions.act_window',
-            }
+        '''
+        return {
+            'name': _('Register Payment'),
+            'res_model': 'account.payment',
+            'view_mode': 'form',
+            'context': {
+                'default_payment_group_id': self.id,
+                'default_currency_id': self.currency_id.id,
+                'default_payment_group_company_id': self.company_id.id,
+                'default_payment_type': self.partner_type == 'supplier' and 'outbound' or 'inbound',
+                'default_payment_date': self.payment_date,
+                'default_partner_id': self.partner_id.id,
+                'payment_group': True,
+            },
+            'target': 'new',
+            'type': 'ir.actions.act_window',
+        }
 
 
     def payment_print(self):
@@ -634,8 +635,7 @@ class AccountPaymentGroup(models.Model):
             # porque la cuenta podria ser no recivible y ni conciliable
             # (por ejemplo en sipreco)
             if counterpart_aml and rec.to_pay_move_line_ids:
-                (counterpart_aml + (rec.to_pay_move_line_ids)).reconcile(
-                    writeoff_acc_id, writeoff_journal_id)
+                (counterpart_aml + (rec.to_pay_move_line_ids)).reconcile()
 
             rec.state = 'posted'
         return True

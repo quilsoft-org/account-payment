@@ -174,8 +174,9 @@ class AccountPayment(models.Model):
         diferencias de cambio
         """
         if self.journal_id:
-            self.currency_id = (
-                self.journal_id.currency_id or self.company_id.currency_id)
+            # el currency de account payment  asi por defecto esto no seria necesario
+            #self.currency_id = (
+            #    self.journal_id.currency_id or self.company_id.currency_id)
             # Set default payment method
             # (we consider the first to be the default one)
             payment_methods = (

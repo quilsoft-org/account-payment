@@ -149,7 +149,7 @@ class AccountMove(models.Model):
                 payment_group.post()
 
     def action_view_payment_groups(self):
-        if self.type in ('in_invoice', 'in_refund'):
+        if self.move_type in ('in_invoice', 'in_refund'):
             action = self.env.ref(
                 'account_payment_group.action_account_payments_group_payable')
         else:
