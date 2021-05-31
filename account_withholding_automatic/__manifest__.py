@@ -23,7 +23,7 @@
     'license': 'AGPL-3',
     'category': 'Accounting & Finance',
     'data': [
-        # 'wizards/res_config_settings_views.xml',
+        'wizards/res_config_settings_views.xml',
         'views/account_tax_view.xml',
         'views/account_payment_group_view.xml',
         'views/account_payment_view.xml',

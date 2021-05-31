@@ -21,7 +21,8 @@
         <field name="model">account.payment.group</field>
         <field name="binding_model_id" ref="model_account_payment_group"/>
         <field name="report_type">qweb-pdf</field>
-        <field name="report_name">(object.partner_type == 'supplier' and 'Orden de pago' or 'Recibo') + ' ' + object.document_number</field>
+        <field name="report_name">account.report_original_vendor_bill</field>
+              <!--field name="report_name">(object.partner_type == 'supplier' and 'Orden de pago' or 'Recibo') + ' ' + object.document_number</field-->
         <field name="report_file">account.report_original_vendor_bill</field>
         <field name="attachment">'payment_group.pdf'</field>
         <field name="attachment_use">True</field>
