@@ -26,7 +26,7 @@
 <!--  -->
 
 <!-- view for payments from payment group, we need edit = true and create = true, we also clean some fields, we could also make and inherited view -->
-<!--record id="view_account_payment_from_group_tree" model="ir.ui.view">
+<record id="view_account_payment_from_group_tree" model="ir.ui.view">
     <field name="name">account.payment.tree</field>
     <field name="model">account.payment</field>
     <field name="arch" type="xml">
@@ -34,10 +34,10 @@
             <field name="name"/>
             <field name="journal_id"/>
             <field name="payment_method_description"/>
-            < lo agregamos para que al usar guardar y nuevo se ejecute onchange en la form y previsualice bien importe en la tree -->
-            <!--field name="amount" attrs="{'invisible':True}"/>
-            <! sum de este amount no tiene sentido por que puede ser distintas monedas -->
-            <!--field name="signed_amount"/>
+            <!-- lo agregamos para que al usar guardar y nuevo se ejecute onchange en la form y previsualice bien importe en la tree -->
+            <field name="amount" attrs="{'invisible':True}"/>
+            <!-- sum de este amount no tiene sentido por que puede ser distintas monedas -->
+            <field name="signed_amount"/>
             <field name="signed_amount_company_currency" sum="Total"/>
             <field name="state"/>
             <field name="currency_id" attrs="{'invisible':True}"/>
@@ -46,7 +46,7 @@
             <button icon="fa-pencil" type="object" states="draft" name="show_details" string="Details"/>
         </tree>
     </field>
-</record-->
+</record>
 
 
 

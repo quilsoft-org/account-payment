@@ -53,7 +53,6 @@ class AccountPaymentGroup(models.Model):
 
     def _get_starting_sequence(self):
         if self.document_type_id:
-            #return 0
             return "%s 00000000" % (self.document_type_id.doc_code_prefix)
         # There was no pattern found, propose one
         return ""
@@ -66,7 +65,7 @@ class AccountPaymentGroup(models.Model):
         param = {'receiptbook_id': self.receiptbook_id.id}
 
         return where_string, param
-
+        
     @api.model
     def _deduce_sequence_number_reset(self, name):
         return 'never'

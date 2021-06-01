@@ -65,10 +65,10 @@ msgstr ""
 #: model:ir.actions.report,print_report_name:account_payment_group.action_report_payment_group
 msgid ""
 "(object.partner_type == 'supplier' and 'Orden de pago' or 'Recibo') + ' ' + "
-"object.document_number"
+"object.l10n_latam_document_number"
 msgstr ""
 "(object.partner_type == 'supplier' and 'Orden de pago' or 'Recibo') + ' ' + "
-"object.document_number"
+"object.l10n_latam_document_number"
 
 #. module: account_payment_group
 #: model_terms:ir.ui.view,arch_db:account_payment_group.view_account_payment_form
