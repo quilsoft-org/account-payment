@@ -9,10 +9,13 @@ _logger = logging.getLogger(__name__)
 
 
 class AccountPaymentGroup(models.Model):
-
-    _inherit = "account.payment.group"
+    _name = "account.payment.group"
+    _inherit = ['account.payment.group', 'sequence.mixin']
+  
     _order = "payment_date desc, name desc, id desc"
     _check_company_auto = True
+    _sequence_index = "receiptbook_id"
+    _sequence_date_field = 'payment_date'
 
     document_sequence_id = fields.Many2one(
         related='receiptbook_id.sequence_id',
@@ -26,7 +29,7 @@ class AccountPaymentGroup(models.Model):
         check_company=True,
     )
     document_type_id = fields.Many2one(
-        related='receiptbook_id.document_type_id',
+        related='receiptbook_id.l10n_latam_document_type_id',
     )
     next_number = fields.Integer(
         # related='receiptbook_id.sequence_id.number_next_actual',
@@ -38,36 +41,57 @@ class AccountPaymentGroup(models.Model):
     name = fields.Char(
         string='Document Reference',
         copy=False,
+        #default='/'
     )
-    document_number = fields.Char(
-        compute='_compute_document_number', inverse='_inverse_document_number',
+    l10n_latam_document_number = fields.Char(
+        compute='_compute_l10n_latam_document_number', inverse='_inverse_l10n_latam_document_number',
         string='Document Number', readonly=True, states={'draft': [('readonly', False)]})
 
     _sql_constraints = [
         ('name_uniq', 'unique(name, receiptbook_id)',
             'Document number must be unique per receiptbook!')]
 
+    def _get_starting_sequence(self):
+        if self.document_type_id:
+            #return 0
+            return "%s 00000000" % (self.document_type_id.doc_code_prefix)
+        # There was no pattern found, propose one
+        return ""
+
+    def _get_last_sequence_domain(self, relaxed=False):
+        self.ensure_one()
+        if not self.receiptbook_id:
+            return "WHERE FALSE", {}
+        where_string = "WHERE receiptbook_id = %(receiptbook_id)s AND (name != '/' or name is not NULL)"
+        param = {'receiptbook_id': self.receiptbook_id.id}
+
+        return where_string, param
+
+    @api.model
+    def _deduce_sequence_number_reset(self, name):
+        return 'never'
+
     @api.depends('name')
-    def _compute_document_number(self):
+    def _compute_l10n_latam_document_number(self):
         recs_with_name = self.filtered('name')
         for rec in recs_with_name:
             name = rec.name
             doc_code_prefix = rec.document_type_id.doc_code_prefix
             if doc_code_prefix and name:
                 name = name.split(" ", 1)[-1]
-            rec.document_number = name
+            rec.l10n_latam_document_number = name
         remaining = self - recs_with_name
-        remaining.document_number = False
+        remaining.l10n_latam_document_number = False
 
-    @api.onchange('document_type_id', 'document_number')
-    def _inverse_document_number(self):
+    @api.onchange('document_type_id', 'l10n_latam_document_number')
+    def _inverse_l10n_latam_document_number(self):
         for rec in self.filtered('document_type_id'):
-            if not rec.document_number:
+            if not rec.l10n_latam_document_number:
                 rec.name = False
             else:
-                document_number = rec.document_type_id._format_document_number(rec.document_number)
-                if rec.document_number != document_number:
-                    rec.document_number = document_number
+                document_number = rec.document_type_id._format_document_number(rec.l10n_latam_document_number)
+                if rec.l10n_latam_document_number != document_number:
+                    rec.l10n_latam_document_number = document_number
                 rec.name = "%s %s" % (rec.document_type_id.doc_code_prefix, document_number)
 
     @api.depends(
@@ -77,23 +101,26 @@ class AccountPaymentGroup(models.Model):
         """
         show next number only for payments without number and on draft state
         """
+
+        self.ensure_one()
+        if 'draft' in self.mapped('state'): 
+            last_sequence = self._get_last_sequence()
+            new = not last_sequence
+            if new:
+                last_sequence = self._get_last_sequence(relaxed=True) or self._get_starting_sequence()
+
+            format, format_values = self._get_sequence_format_param(last_sequence)
+            if new:
+                format_values['seq'] = 0
+                format_values['year'] = self[self._sequence_date_field].year % (10 ** format_values['year_length'])
+                format_values['month'] = self[self._sequence_date_field].month
+        i = 0
         for payment in self:
-            if payment.state != 'draft' or not payment.receiptbook_id or payment.document_number:
+            if payment.state != 'draft' or not payment.receiptbook_id or payment.l10n_latam_document_number:
                 payment.next_number = False
                 continue
-            sequence = payment.receiptbook_id.sequence_id
-            # we must check if sequence use date ranges
-            if not sequence.use_date_range:
-                payment.next_number = sequence.number_next_actual
-            else:
-                dt = self.payment_date or fields.Date.today()
-                seq_date = self.env['ir.sequence.date_range'].search([
-                    ('sequence_id', '=', sequence.id),
-                    ('date_from', '<=', dt),
-                    ('date_to', '>=', dt)], limit=1)
-                if not seq_date:
-                    seq_date = sequence._create_date_range_seq(dt)
-                payment.next_number = seq_date.number_next_actual
+            i += 1
+            payment.next_number = format_values['seq'] + i
 
     @api.constrains('company_id', 'partner_type')
     def _force_receiptbook(self):
@@ -119,18 +146,16 @@ class AccountPaymentGroup(models.Model):
 
     def post(self):
         for rec in self:
-            if not rec.document_number:
-                if rec.receiptbook_id and not rec.receiptbook_id.sequence_id:
-                    raise UserError(_(
-                        'Error!. Please define sequence on the receiptbook'
-                        ' related documents to this payment or set the '
-                        'document number.'))
-                if rec.receiptbook_id.sequence_id:
-                    rec.document_number = (
-                        rec.receiptbook_id.with_context(
-                            ir_sequence_date=rec.payment_date
-                        ).sequence_id.next_by_id())
-            rec.payment_ids.move_name = rec.name
+            _logger.info(rec.name)
+            if not rec.name or rec.name == '/':
+                rec._set_next_sequence()
+
+                #if rec.receiptbook_id.sequence_id:
+                #    rec.l10n_latam_document_number = (
+                #        rec.receiptbook_id.with_context(
+                #            ir_sequence_date=rec.payment_date
+                #        ).sequence_id.next_by_id())
+            # rec.payment_ids.move_name = rec.name
 
             # hacemos el llamado acá y no arriba para primero hacer los checks
             # y ademas primero limpiar o copiar talonario antes de postear.
