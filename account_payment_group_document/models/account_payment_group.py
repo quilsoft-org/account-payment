@@ -17,9 +17,6 @@ class AccountPaymentGroup(models.Model):
     _sequence_index = "receiptbook_id"
     _sequence_date_field = 'payment_date'
 
-    document_sequence_id = fields.Many2one(
-        related='receiptbook_id.sequence_id',
-    )
     receiptbook_id = fields.Many2one(
         'account.payment.receiptbook',
         'ReceiptBook',
@@ -27,6 +24,12 @@ class AccountPaymentGroup(models.Model):
         states={'draft': [('readonly', False)]},
         auto_join=True,
         check_company=True,
+    )
+    sequence_type = fields.Selection(
+        [('automatic', 'Automatic'), ('manual', 'Manual')],
+        string='Sequence Type',
+        default='automatic',
+        related="receiptbook_id.sequence_type"
     )
     document_type_id = fields.Many2one(
         related='receiptbook_id.l10n_latam_document_type_id',
@@ -53,7 +56,7 @@ class AccountPaymentGroup(models.Model):
 
     def _get_starting_sequence(self):
         if self.document_type_id:
-            return "%s 00000000" % (self.document_type_id.doc_code_prefix)
+            return "%s %08d" % (self.document_type_id.doc_code_prefix, self.receiptbook_id.first_number)
         # There was no pattern found, propose one
         return ""
 
@@ -93,9 +96,6 @@ class AccountPaymentGroup(models.Model):
                     rec.l10n_latam_document_number = document_number
                 rec.name = "%s %s" % (rec.document_type_id.doc_code_prefix, document_number)
 
-    @api.depends(
-        'receiptbook_id.sequence_id.number_next_actual',
-    )
     def _compute_next_number(self):
         """
         show next number only for payments without number and on draft state
@@ -110,7 +110,7 @@ class AccountPaymentGroup(models.Model):
 
             format, format_values = self._get_sequence_format_param(last_sequence)
             if new:
-                format_values['seq'] = 0
+                format_values['seq'] = self.receiptbook_id.first_number - 1
                 format_values['year'] = self[self._sequence_date_field].year % (10 ** format_values['year_length'])
                 format_values['month'] = self[self._sequence_date_field].month
         i = 0
@@ -148,12 +148,6 @@ class AccountPaymentGroup(models.Model):
             _logger.info(rec.name)
             if not rec.name or rec.name == '/':
                 rec._set_next_sequence()
-
-                #if rec.receiptbook_id.sequence_id:
-                #    rec.l10n_latam_document_number = (
-                #        rec.receiptbook_id.with_context(
-                #            ir_sequence_date=rec.payment_date
-                #        ).sequence_id.next_by_id())
             # rec.payment_ids.move_name = rec.name
 
             # hacemos el llamado acá y no arriba para primero hacer los checks
@@ -173,3 +167,28 @@ class AccountPaymentGroup(models.Model):
                     rec.receiptbook_id.mail_template_id.id,
                 )
         return True
+
+    def _set_next_sequence(self):
+        """Set the next sequence.
+
+        This method ensures that the field is set both in the ORM and in the database.
+        This is necessary because we use a database query to get the previous sequence,
+        and we need that query to always be executed on the latest data.
+
+        :param field_name: the field that contains the sequence.
+        """
+        self.ensure_one()
+        last_sequence = self._get_last_sequence()
+        new = not last_sequence
+        if new:
+            last_sequence = self._get_last_sequence(relaxed=True) or self._get_starting_sequence()
+
+        format, format_values = self._get_sequence_format_param(last_sequence)
+        if new:
+            format_values['seq'] = self.receiptbook_id.first_number
+            format_values['year'] = self[self._sequence_date_field].year % (10 ** format_values['year_length'])
+            format_values['month'] = self[self._sequence_date_field].month
+        format_values['seq'] = format_values['seq'] + 1
+
+        self[self._sequence_field] = format.format(**format_values)
+        self._compute_split_sequence()

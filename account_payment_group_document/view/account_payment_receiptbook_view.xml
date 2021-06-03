@@ -44,14 +44,13 @@
                             <field name="partner_type"/>
                             <field name="report_partner_id"/>
                             <field name="sequence_type"/>
-                            <field name="padding" attrs="{'invisible':[('sequence_type','!=','manual')],'required':[('sequence_type','=','manual')]}"/>
+                            <field name="padding" />
+                            <field name="first_number"/>
                             <field name="prefix"/>
                             <field name="mail_template_id"  context="{'default_model': 'account.payment.group'}"/>
                         </group>
                         <group>
                             <field name="l10n_latam_document_type_id"/>
-                            <field name="sequence_id" attrs="{'invisible':[('sequence_type','!=','automatic')]}"/>
-                            <field name="next_number" attrs="{'invisible':[('sequence_type','!=','automatic')]}"/>
                             <field name="company_id" widget="selection" groups="base.group_multi_company"/>
                             <field name="active"/>
                         </group>
