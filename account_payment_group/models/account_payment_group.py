@@ -578,7 +578,7 @@ class AccountPaymentGroup(models.Model):
         self.write({'state': 'posted'})
 
     def cancel(self):
-        self.mapped('payment_ids').cancel()
+        self.mapped('payment_ids').action_cancel()
         self.write({'state': 'cancel'})
         return True
 
@@ -653,7 +653,7 @@ class AccountPaymentGroup(models.Model):
             return ''
         move_ids = self.env['account.move'].browse(active_ids)
         if move_ids.filtered(lambda x: x.state != 'posted') or \
-                move_ids.filtered(lambda x: x.invoice_payment_state != 'not_paid'):
+                move_ids.filtered(lambda x: x.invoice_payment_state not in ['not_paid', 'partial']):
             raise ValidationError(_('You can only register payment if invoice is posted and unpaid'))
         return {
             'name': _('Register Payment'),

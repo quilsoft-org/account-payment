@@ -477,6 +477,7 @@ class AccountCheck(models.Model):
         parecido a los statements donde odoo ya lo genera posteado
         """
         # payment.post()
+        _logger.info('post_payment_check')
         move = self.env['account.move'].with_context(default_type='entry').create(payment._prepare_payment_moves())
         move.post()
         payment.write({'state': 'posted', 'move_name': move.name})
@@ -615,7 +616,7 @@ class AccountCheck(models.Model):
             'amount': self.amount,
             'currency_id': self.currency_id.id,
             'journal_id': journal.id,
-            'payment_date': action_date,
+            'date': action_date,
             'payment_type': 'outbound',
             'payment_method_id':
             self.env.ref('account.account_payment_method_manual_out').id,
@@ -720,7 +721,7 @@ class AccountCheck(models.Model):
             # this is done on muticompany fix
             # 'company_id': journal.company_id.id,
             'partner_id': partner.id,
-            'type': invoice_type,
+            'move_type': invoice_type,
             'invoice_line_ids': [(0, 0, inv_line_vals)],
         }
         if self.currency_id:
