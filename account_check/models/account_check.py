@@ -463,7 +463,7 @@ class AccountCheck(models.Model):
         if self.state in ['handed']:
             payment_values = self.get_payment_values(self.journal_id)
             payment = self.env['account.payment'].with_context(
-                default_name=_('Check "%s" debit') % (self.name),
+                #default_name=_('Check "%s" debit') % (self.name),
                 force_account_id=self.company_id._get_check_account(
                     'deferred').id,
                 bank_debit=True
@@ -528,8 +528,7 @@ class AccountCheck(models.Model):
         # hacemos esa verificación
         account = self.env['account.account']
         for rec in self:
-            # to-do: por ahora saco esto hasta entender que hago
-            #credit_account = rec.journal_id.default_credit_account_id
+            credit_account = rec.journal_id.payment_credit_account_id
             debit_account = credit_account = rec.company_id._get_check_account('holding')
             inbound_methods = rec.journal_id['inbound_payment_method_ids']
             outbound_methods = rec.journal_id['outbound_payment_method_ids']
@@ -657,7 +656,7 @@ class AccountCheck(models.Model):
                     'If you want to reject you need to do it manually.'))
             payment_vals = self.get_payment_values(journal)
             payment = self.env['account.payment'].with_context(
-                default_name=_('Check "%s" rejection') % (self.name),
+                # default_name=_('Check "%s" rejection') % (self.name),
                 force_account_id=self.company_id._get_check_account(
                     'rejected').id,
             ).create(payment_vals)
