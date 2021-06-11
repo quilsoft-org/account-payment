@@ -47,21 +47,10 @@ class AccountPayment(models.Model):
 
         return super(AccountPayment, self).action_post()
 
-    def _prepare_payment_moves(self):
-        all_moves_vals = []
-        for rec in self:
-            moves_vals = super(AccountPayment, rec)._prepare_payment_moves()
+    def _prepare_move_line_default_vals(self, write_off_line_vals=None):
 
-            vals = rec._get_withholding_line_vals()
-            if vals:
-                moves_vals[0]['line_ids'][1][2].update(vals)
+        line_vals_list = super()._prepare_move_line_default_vals(write_off_line_vals)
 
-            all_moves_vals += moves_vals
-
-        return all_moves_vals
-
-    def _get_withholding_line_vals(self):
-        vals = {}
         if self.payment_method_code == 'withholding':
             if self.payment_type == 'transfer':
                 raise UserError(_(
@@ -79,17 +68,16 @@ class AccountPayment(models.Model):
                 raise UserError(
                     'En los impuestos de retención debe haber una línea de repartición de tipo tax para pagos y otra'
                     'para reembolsos')
+
             account = rep_lines.account_id
-            # if not accounts on taxes then we use accounts of journal
-            if account:
-                vals['account_id'] = account.id
-            vals['name'] = self.withholding_number or '/'
-            vals['tax_repartition_line_id'] = rep_lines.id
-            # if not account:
-            #     raise UserError(_(
-            #         'Accounts not configured on tax %s' % (
-            #             self.tax_withholding_id.name)))
-        return vals
+            line_vals_list[0]['account_id'] = account.id
+            line_vals_list[0]['tax_repartition_line_id'] = rep_lines.id
+
+
+        return line_vals_list
+
+
+
 
     @api.depends('payment_method_code', 'tax_withholding_id.name')
     def _compute_payment_method_description(self):
@@ -101,3 +89,27 @@ class AccountPayment(models.Model):
         return super(
             AccountPayment,
             (self - payments))._compute_payment_method_description()
+
+    # -------------------------------------------------------------------------
+    # HELPERS
+    # -------------------------------------------------------------------------
+    # agrego a esta funcion la cuenta deferred
+    # no es una solucion elegante pero necesito usar
+    # esta cuenta como si fuera liquida solo algunas veces
+    def _seek_for_lines_liquidity_accounts(self):
+        accounts = super()._seek_for_lines_liquidity_accounts()
+
+        if self.payment_method_code == 'withholding':
+            if (
+                    (self.partner_type == 'customer' and
+                        self.payment_type == 'inbound') or
+                    (self.partner_type == 'supplier' and
+                        self.payment_type == 'outbound')):
+                rep_field = 'invoice_repartition_line_ids'
+            else:
+                rep_field = 'refund_repartition_line_ids'
+
+            rep_lines = self.tax_withholding_id[rep_field].filtered(lambda x: x.repartition_type == 'tax')
+            accounts.append(rep_lines.account_id)
+
+        return accounts
