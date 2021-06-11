@@ -565,7 +565,7 @@ class AccountPayment(models.Model):
         all_moves_vals = []
         for rec in self:
             moves_vals = super(AccountPayment, rec)._prepare_payment_moves()
-
+            _logger.info("moves_vals %r" % moves_vals)
             # edit liquidity lines
             # Si se esta forzando importe en moneda de cia, usamos este importe para debito/credito
             vals = rec.do_checks_operations()
@@ -678,32 +678,22 @@ class AccountPayment(models.Model):
     # -------------------------------------------------------------------------
     # agrego a esta funcion la cuenta deferred
     # no es una solucion elegante pero necesito usar 
-    # esta cuenta como si fuera transitoria
+    # esta cuenta como si fuera liquida solo algunas veces
+    def _seek_for_lines_liquidity_accounts(self):
 
-    def _seek_for_lines(self):
-        ''' Helper used to dispatch the journal items between:
-        - The lines using the temporary liquidity account.
-        - The lines using the counterpart account.
-        - The lines being the write-off lines.
-        :return: (liquidity_lines, counterpart_lines, writeoff_lines)
-        '''
-        self.ensure_one()
+        accounts = super()._seek_for_lines_liquidity_accounts()
+        deferred_account = self.company_id._get_check_account('deferred')
+        if self.check_type and self.move_id.line_ids[0]['account_id'].id == deferred_account.id:
+            accounts.append(deferred_account)                                
 
-        liquidity_lines = self.env['account.move.line']
-        counterpart_lines = self.env['account.move.line']
-        writeoff_lines = self.env['account.move.line']
+        return accounts
+    
+    # la cuenta deferred -> contraparte cuando la operacion es bank_debit
+    def _seek_for_lines_counterpart_accounts(self, line):
+        deferred_account = self.company_id._get_check_account('deferred')
 
-        for line in self.move_id.line_ids:
-            if line.account_id in (
-                    self.journal_id.default_account_id,
-                    self.journal_id.payment_debit_account_id,
-                    self.journal_id.payment_credit_account_id,
-                    self.company_id._get_check_account('deferred')                    
-            ):
-                liquidity_lines += line
-            elif line.account_id.internal_type in ('receivable', 'payable') or line.partner_id == line.company_id.partner_id:
-                counterpart_lines += line
-            else:
-                writeoff_lines += line
+        is_bank_debit = self._context.get('bank_debit')
+        if is_bank_debit and line.account_id.id == deferred_account.id:
+            return True
 
-        return liquidity_lines, counterpart_lines, writeoff_lines
+        return super()._seek_for_lines_counterpart_accounts(line)

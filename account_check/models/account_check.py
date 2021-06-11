@@ -466,10 +466,12 @@ class AccountCheck(models.Model):
                 default_name=_('Check "%s" debit') % (self.name),
                 force_account_id=self.company_id._get_check_account(
                     'deferred').id,
+                bank_debit=True
             ).create(payment_values)
-            self.post_payment_check(payment)
-            self.handed_reconcile(payment.move_line_ids.mapped('move_id'))
-            self._add_operation('debited', payment, date=payment.payment_date)
+            payment.action_post()
+            #self.post_payment_check(payment)
+            self.handed_reconcile(payment.line_ids.mapped('move_id'))
+            self._add_operation('debited', payment, date=payment.date)
 
     @api.model
     def post_payment_check(self, payment):
@@ -478,7 +480,7 @@ class AccountCheck(models.Model):
         """
         # payment.post()
         _logger.info('post_payment_check')
-        move = self.env['account.move'].with_context(default_type='entry').create(payment._prepare_payment_moves())
+        move = self.env['account.move'].with_context(default_type='entry').create(payment._prepare_move_line_default_vals())
         move.post()
         payment.write({'state': 'posted', 'move_name': move.name})
 
@@ -494,10 +496,10 @@ class AccountCheck(models.Model):
         # conciliamos
         if debit_account.reconcile:
             operation = self._get_operation('handed')
-            if operation.origin._name == 'account.payment':
+            '''if operation.origin._name == 'account.payment':
                 move_lines = operation.origin.move_line_ids
-            elif operation.origin._name == 'account.move':
-                move_lines = operation.origin.line_ids
+            elif operation.origin._name == 'account.move':'''
+            move_lines = operation.origin.line_ids
             move_lines |= move.line_ids
             move_lines = move_lines.filtered(
                 lambda x: x.account_id == debit_account)
@@ -659,8 +661,8 @@ class AccountCheck(models.Model):
                 force_account_id=self.company_id._get_check_account(
                     'rejected').id,
             ).create(payment_vals)
-            self.post_payment_check(payment)
-            self._add_operation('rejected', payment, date=payment.payment_date)
+            payment.action_post()
+            self._add_operation('rejected', payment, date=payment.date)
         elif self.state == 'delivered':
             operation = self._get_operation(self.state, True)
             return self.action_create_debit_note(
