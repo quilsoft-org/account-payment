@@ -22,7 +22,7 @@
     'version': "14.0.1.3.0",
     'category': 'Accounting',
     'summary': 'Accounting, Payment, Check, Third, Issue',
-    'author': 'ADHOC SA, AITIC S.A.S',
+    'author': 'ADHOC SA, AITIC S.A.S, QUILSOFT',
     'license': 'AGPL-3',
     'images': [
     ],

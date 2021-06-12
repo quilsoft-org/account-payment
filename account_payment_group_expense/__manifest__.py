@@ -5,7 +5,7 @@
     "version": "13.0.1.0.0",
     "category": "Accounting",
     "website": "www.adhoc.com.ar",
-    "author": "ADHOC SA,",
+    "author": "ADHOC SA, QUILSOFT",
     "license": "AGPL-3",
     "depends": [
         "account_payment_group",
