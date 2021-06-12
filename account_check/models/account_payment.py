@@ -524,7 +524,6 @@ class AccountPayment(models.Model):
     def _prepare_move_line_default_vals(self, write_off_line_vals=None):
 
         line_vals_list = super()._prepare_move_line_default_vals(write_off_line_vals)
-        _logger.info('acaaaaa')
         force_account_id = self._context.get('force_account_id')
 
         if self.check_type and self.check_payment_date:
@@ -708,9 +707,18 @@ class AccountPayment(models.Model):
     # la cuenta deferred -> contraparte cuando la operacion es bank_debit
     def _seek_for_lines_counterpart_accounts(self, line):
         deferred_account = self.company_id._get_check_account('deferred')
+        holding_account = self.company_id._get_check_account('holding')
 
         is_bank_debit = self._context.get('bank_debit')
-        if is_bank_debit and line.account_id.id == deferred_account.id:
+
+        # if is_bank_debit and line.account_id.id == deferred_account.id:
+        # por ahora la deferred_account es siempre True
+        # no deberia dar problemas porque _seek_for_lines usa
+        # elif y es la seguda instancia
+        # lo hago asi porque is_bank_debit se pierde algunas veces
+        if line.account_id.id == deferred_account.id:
+            return True
+        elif line.account_id.id == holding_account.id:
             return True
 
         return super()._seek_for_lines_counterpart_accounts(line)
