@@ -78,7 +78,7 @@ class AccountChartTemplate(models.Model):
                     'sequence_type': sequence_type,
                     'padding': 8,
                     'company_id': company.id,
-                    'document_type_id': document_type.id,
+                    'l10n_latam_document_type_id': document_type.id,
                     'prefix': (
                         '%%0%sd-' % 4 % sequences[sequence_type]),
                     'sequence': sequences[sequence_type],
