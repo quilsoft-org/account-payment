@@ -365,7 +365,7 @@ class AccountPaymentGroup(models.Model):
                 'default_currency_id': self.currency_id.id,
                 'default_payment_group_company_id': self.company_id.id,
                 'default_payment_type': self.partner_type == 'supplier' and 'outbound' or 'inbound',
-                'default_payment_date': self.payment_date,
+                'default_date': self.payment_date,
                 'default_partner_id': self.partner_id.id,
                 'payment_group': True,
             },
