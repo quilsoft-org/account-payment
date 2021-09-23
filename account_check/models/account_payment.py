@@ -561,7 +561,6 @@ class AccountPayment(models.Model):
                     self.check_ids.mapped('name'))
         '''
 
-        _logger.info(line_vals_list)
         return line_vals_list
 
     def _prepare_payment_moves(self):

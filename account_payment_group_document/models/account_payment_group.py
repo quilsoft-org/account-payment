@@ -62,10 +62,11 @@ class AccountPaymentGroup(models.Model):
 
     def _get_last_sequence_domain(self, relaxed=False):
         self.ensure_one()
-        if not self.receiptbook_id:
-            return "WHERE FALSE", {}
-        where_string = "WHERE receiptbook_id = %(receiptbook_id)s AND (name != '/' or name is not NULL)"
-        param = {'receiptbook_id': self.receiptbook_id.id}
+        if self._name == 'account.payment.group':
+            if not self.receiptbook_id:
+                return "WHERE FALSE", {}
+            where_string = "WHERE receiptbook_id = %(receiptbook_id)s AND (name != '/' or name is not NULL)"
+            param = {'receiptbook_id': self.receiptbook_id.id}
 
         return where_string, param
         
