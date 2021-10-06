@@ -164,7 +164,7 @@ class AccountPayment(models.Model):
     # rouding odoo believes amount has changed)
     @api.onchange('amount_company_currency')
     def _inverse_amount_company_currency(self):
-        for rec in self:
+        for rec in self.with_context(skip_account_move_synchronization=True):
             if rec.other_currency and rec.amount_company_currency != \
                     rec.currency_id._convert(
                         rec.amount, rec.company_id.currency_id,
@@ -181,7 +181,7 @@ class AccountPayment(models.Model):
         * si no, si hay force_amount_company_currency, devuelve ese valor
         * sino, devuelve el amount convertido a la moneda de la cia
         """
-        for rec in self:
+        for rec in self.with_context(skip_account_move_synchronization=True):
             if not rec.other_currency:
                 amount_company_currency = rec.amount
             elif rec.force_amount_company_currency:
@@ -194,14 +194,14 @@ class AccountPayment(models.Model):
 
     @api.onchange('payment_type_copy')
     def _inverse_payment_type_copy(self):
-        for rec in self:
+        for rec in self.with_context(skip_account_move_synchronization=True):
             # if false, then it is a transfer
             rec.payment_type = (
                 rec.payment_type_copy and rec.payment_type_copy or 'transfer')
 
     @api.depends('payment_type')
     def _compute_payment_type_copy(self):
-        for rec in self:
+        for rec in self.with_context(skip_account_move_synchronization=True):
             if rec.payment_type == 'transfer':
                 rec.payment_type_copy = False
             else:
@@ -356,7 +356,7 @@ class AccountPayment(models.Model):
         If we are paying a payment gorup with paylines, we use account
         of lines that are going to be paid
         """
-        for rec in self:
+        for rec in self.with_context(skip_account_move_synchronization=True):
             to_pay_account = rec.payment_group_id.to_pay_move_line_ids.mapped(
                 'account_id')
             if len(to_pay_account) > 1:

@@ -40,7 +40,7 @@ class AccountPayment(models.Model):
 
     @api.depends('check_ids')
     def _compute_check(self):
-        for rec in self:
+        for rec in self.with_context(skip_account_move_synchronization=True):
             rec.check_id = False
             # we only show checks for issue checks or received thid checks
             # if len of checks is 1
@@ -130,7 +130,7 @@ class AccountPayment(models.Model):
         check_payments = self.filtered(
             lambda x: x.payment_method_code in
             ['issue_check', 'received_third_check', 'delivered_third_check'])
-        for rec in check_payments:
+        for rec in check_payments.with_context(skip_account_move_synchronization=True):
             if rec.check_ids:
                 checks_desc = ', '.join(rec.check_ids.mapped('name'))
             else:
