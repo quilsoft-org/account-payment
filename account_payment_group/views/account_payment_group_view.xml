@@ -97,7 +97,6 @@
                     <group>
                         <field name="payment_date"/>
                         <field name="communication" attrs="{'invisible': [('state', '!=', 'draft'), ('communication', '=', False)]}"/>
-                        <button name="action_register_payment" states="draft" string="Agregar Pago" type="object" />
                     </group>
                     <group>
                         <field name="selected_debt" options="{'currency_field': 'currency_id'}" states="draft,confirmed"/>

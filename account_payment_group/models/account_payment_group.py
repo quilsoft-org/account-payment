@@ -336,7 +336,6 @@ class AccountPaymentGroup(models.Model):
 
         ''' Open the account.payment.register wizard to pay the selected journal entries.
         :return: An action opening the account.payment.register wizard.
-        '''
         if len(self.to_pay_move_line_ids):
             return {
                 'name': _('Register Payment'),
@@ -356,22 +355,23 @@ class AccountPaymentGroup(models.Model):
                 'type': 'ir.actions.act_window',
             }
         else:
-            return {
-                'name': _('Register Payment'),
-                'res_model': 'account.payment',
-                'view_mode': 'form',
-                'context': {
-                    'default_payment_group_id': self.id,
-                    'default_currency_id': self.currency_id.id,
-                    'default_payment_group_company_id': self.company_id.id,
-                    'default_payment_type': self.partner_type == 'supplier' and 'outbound' or 'inbound',
-                    'default_date': self.payment_date,
-                    'default_partner_id': self.partner_id.id,
-                    'payment_group': True,
-                },
-                'target': 'new',
-                'type': 'ir.actions.act_window',
-            }
+        '''
+        return {
+            'name': _('Register Payment'),
+            'res_model': 'account.payment',
+            'view_mode': 'form',
+            'context': {
+                'default_payment_group_id': self.id,
+                'default_currency_id': self.currency_id.id,
+                'default_payment_group_company_id': self.company_id.id,
+                'default_payment_type': self.partner_type == 'supplier' and 'outbound' or 'inbound',
+                'default_date': self.payment_date,
+                'default_partner_id': self.partner_id.id,
+                'payment_group': True,
+            },
+            'target': 'new',
+            'type': 'ir.actions.act_window',
+        }
 
 
     def payment_print(self):
