@@ -117,6 +117,28 @@ class AccountPayment(models.Model):
         string='Company currency',
     )
 
+    def _synchronize_to_moves(self, changed_fields):
+        payment_other_currency = self.filtered(lambda payment: payment.other_currency)
+        payment_company_currency = self - payment_other_currency
+        for payment in payment_other_currency: 
+            _logger.info(payment.exchange_rate)
+
+            super(AccountPayment, payment.with_context(force_rate_to=payment.exchange_rate))._synchronize_to_moves(changed_fields)
+        super(AccountPayment, payment_company_currency)._synchronize_to_moves(changed_fields)
+
+    def action_post(self):
+        _logger.info('action_post')
+        payment_other_currency = self.filtered(lambda payment: payment.other_currency)
+        _logger.info(payment_other_currency)
+        payment_company_currency = self - payment_other_currency
+        for payment in payment_other_currency: 
+            _logger.info(payment.exchange_rate)
+            p = payment.with_context(force_rate_to=payment.exchange_rate)
+            _logger.info('p._context')
+            _logger.info(p._context)
+            super(AccountPayment, p).action_post()
+        super(AccountPayment, payment_company_currency).action_post()
+
     @api.depends(
         'amount', 'payment_type', 'partner_type', 'amount_company_currency')
     def _compute_signed_amount(self):
@@ -213,6 +235,11 @@ class AccountPayment(models.Model):
             domain.append(
                 ('company_id', '=', self.payment_group_company_id.id))
         return domain
+
+    @api.onchange('journal_id')
+    def _onchange_journal_id(self):
+        self.name = '/'
+
 
     @api.onchange('payment_type')
     def _onchange_payment_type(self):
