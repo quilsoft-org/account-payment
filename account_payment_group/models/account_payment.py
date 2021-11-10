@@ -117,6 +117,15 @@ class AccountPayment(models.Model):
         string='Company currency',
     )
 
+    """
+    @api.onchange('exchange_rate')
+    def onchange_exchange_rate(self):
+        if self.other_currency:
+            #self.move_id.line_ids = False
+            if self.move_id and len(self.move_id.line_ids) :
+                self.with_context(force_rate_to=self.exchange_rate)._synchronize_to_moves(['currency_id'])
+    """
+
     def _synchronize_to_moves(self, changed_fields):
         payment_other_currency = self.filtered(lambda payment: payment.other_currency)
         payment_company_currency = self - payment_other_currency
