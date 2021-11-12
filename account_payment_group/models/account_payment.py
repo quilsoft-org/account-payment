@@ -116,6 +116,11 @@ class AccountPayment(models.Model):
         related='company_id.currency_id',
         string='Company currency',
     )
+    communication = fields.Char(
+        string='Memo',
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+    )
 
     """
     @api.onchange('exchange_rate')

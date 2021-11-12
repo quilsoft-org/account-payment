@@ -239,12 +239,10 @@ result = withholdable_base_amount * 0.10
         elif self.withholding_accumulated_payments == 'year':
             from_relative_delta = relativedelta(day=1, month=1)
         from_date = to_date + from_relative_delta
-        common_previous_domain += [
-            ('date', '<=', to_date),
-            ('date', '>=', from_date),
-        ]
 
         previous_payment_groups_domain = common_previous_domain + [
+            ('payment_date', '<=', to_date),
+            ('payment_date', '>=', from_date),
             ('state', 'not in', ['draft', 'cancel', 'confirmed']),
             ('id', '!=', payment_group.id),
         ]
@@ -253,6 +251,8 @@ result = withholdable_base_amount * 0.10
         # on posted payment group, we remove the cancel payments (not the
         # draft ones as they are also considered by public_budget)
         previous_payments_domain = common_previous_domain + [
+            ('date', '<=', to_date),
+            ('date', '>=', from_date),
             ('payment_group_id.state', 'not in',
                 ['draft', 'cancel', 'confirmed']),
             ('state', '!=', 'cancel'),
