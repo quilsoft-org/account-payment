@@ -116,7 +116,7 @@ class AccountPayment(models.Model):
 
     @api.depends('payment_method_code')
     def _compute_check_type(self):
-        for rec in self:
+        for rec in self.with_context(skip_account_move_synchronization=True):
             if rec.payment_method_id.code == 'issue_check':
                 rec.check_type = 'issue_check'
             elif rec.payment_method_id.code in [
@@ -146,7 +146,7 @@ class AccountPayment(models.Model):
     @api.constrains('check_ids')
     @api.onchange('check_ids', 'payment_method_code')
     def onchange_checks(self):
-        for rec in self:
+        for rec in self.with_context(skip_account_move_synchronization=True):
             # we only overwrite if payment method is delivered
             if rec.payment_method_code == 'delivered_third_check':
                 rec.amount = sum(rec.check_ids.mapped('amount'))
@@ -190,7 +190,7 @@ class AccountPayment(models.Model):
                 padding = len(str(number))
             return ('%%0%sd' % padding % number)
 
-        for rec in self:
+        for rec in self.with_context(skip_account_move_synchronization=True):
             if rec.payment_method_code in ['received_third_check']:
                 if not rec.check_number:
                     check_name = False
@@ -281,7 +281,7 @@ class AccountPayment(models.Model):
 
 # post methods
     def action_draft(self):
-        for rec in self:
+        for rec in self.with_context(skip_account_move_synchronization=True):
             # solo cancelar operaciones si estaba postead, por ej para comp.
             # con pagos confirmados, se cancelan pero no hay que deshacer nada
             # de asientos ni cheques
@@ -292,28 +292,28 @@ class AccountPayment(models.Model):
 
     def create_check(self, check_type, operation, bank):
         self.ensure_one()
+        for rec in self.with_context(skip_account_move_synchronization=True):
+            check_vals = {
+                'bank_id': bank.id,
+                'owner_name': rec.check_owner_name,
+                'owner_vat': rec.check_owner_vat,
+                'number': rec.check_number,
+                'name': rec.check_name,
+                'checkbook_id': rec.checkbook_id.id,
+                'issue_date': rec.check_issue_date,
+                'type': rec.check_type,
+                'journal_id': rec.journal_id.id,
+                'amount': rec.amount,
+                'payment_date': rec.check_payment_date,
+                'currency_id': rec.currency_id.id,
+                'amount_company_currency': rec.amount_company_currency,
+            }
 
-        check_vals = {
-            'bank_id': bank.id,
-            'owner_name': self.check_owner_name,
-            'owner_vat': self.check_owner_vat,
-            'number': self.check_number,
-            'name': self.check_name,
-            'checkbook_id': self.checkbook_id.id,
-            'issue_date': self.check_issue_date,
-            'type': self.check_type,
-            'journal_id': self.journal_id.id,
-            'amount': self.amount,
-            'payment_date': self.check_payment_date,
-            'currency_id': self.currency_id.id,
-            'amount_company_currency': self.amount_company_currency,
-        }
-
-        check = self.env['account.check'].create(check_vals)
-        self.check_ids = [(4, check.id, False)]
-        check._add_operation(
-            operation, self, self.partner_id, date=self.date)
-        return check
+            check = self.env['account.check'].create(check_vals)
+            rec.check_ids = [(4, check.id, False)]
+            check._add_operation(
+                operation, self, rec.partner_id, date=rec.date)
+            return check
 
     def do_checks_operations(self, cancel=False):
         """
@@ -330,7 +330,7 @@ class AccountPayment(models.Model):
         """
         self.ensure_one()
         vals = {}
-        rec = self
+        rec = self.with_context(skip_account_move_synchronization=True)
         if not rec.check_type:
             # continue
             return vals
@@ -499,7 +499,7 @@ class AccountPayment(models.Model):
 
     def action_post(self):
 
-        for rec in self:
+        for rec in self.with_context(skip_account_move_synchronization=True):
             if rec.check_ids and not rec.currency_id.is_zero(
                     sum(rec.check_ids.mapped('amount')) - rec.amount):
                 raise UserError(_(
@@ -516,7 +516,7 @@ class AccountPayment(models.Model):
         res = super(AccountPayment, self).action_post()
         # TODO: Este codigo esta feo deberia ser un multi
 
-        for rec in self:
+        for rec in self.with_context(skip_account_move_synchronization=True):
             if rec.payment_method_code in ['issue_check', 'received_third_check', 'delivered_third_check']:
                 rec.do_checks_operations()
         return res
@@ -524,42 +524,43 @@ class AccountPayment(models.Model):
     def _prepare_move_line_default_vals(self, write_off_line_vals=None):
 
         line_vals_list = super()._prepare_move_line_default_vals(write_off_line_vals)
-        force_account_id = self._context.get('force_account_id')
+        for rec in self.with_context(skip_account_move_synchronization=True):
+            force_account_id = rec._context.get('force_account_id')
 
-        if self.check_type and self.check_payment_date:
-            line_vals_list
-            line_vals_list[0]['date_maturity'] = self.check_payment_date
-        if force_account_id:
-            line_vals_list[1]['account_id'] = force_account_id
-        elif self.check_type and self.check_type == 'issue_check':
-            line_vals_list[0][
-                'account_id'] = self.company_id._get_check_account('deferred').id
-        elif self.check_type and self.check_type == 'third_check':
-            line_vals_list[0][
-                'account_id'] = self.company_id._get_check_account('holding').id
+            if rec.check_type and rec.check_payment_date:
+                line_vals_list
+                line_vals_list[0]['date_maturity'] = rec.check_payment_date
+            if force_account_id:
+                line_vals_list[1]['account_id'] = force_account_id
+            elif rec.check_type and rec.check_type == 'issue_check':
+                line_vals_list[0][
+                    'account_id'] = rec.company_id._get_check_account('deferred').id
+            elif rec.check_type and rec.check_type == 'third_check':
+                line_vals_list[0][
+                    'account_id'] = rec.company_id._get_check_account('holding').id
 
-        '''
-        elif (
-                self.payment_method_code == 'received_third_check' and
-                self.payment_type == 'inbound'
-        ):
-            line_vals_list[0][
-                'account_id'] = self.check_ids.get_third_check_account().id
-            line_vals_list[0]['name'] = _('Receive check %s') % self.name
-
-        elif (
-                self.payment_method_code == 'delivered_third_check' and
-                self.payment_type == 'transfer'):
-            line_vals_list[0][
-                'account_id'] = self.check_ids.get_third_check_account().id
-            line_vals_list[0]['name'] = _('Transfer checks %s') % self.name
-
-        elif self.destination_journal_id.type == 'cash':
-            line_vals_list[0][
-                'account_id'] = self.check_ids.get_third_check_account().id
-            line_vals_list[0]['name'] = _('Sell check %s') % ', '.join(
-                    self.check_ids.mapped('name'))
-        '''
+            '''
+            elif (
+                    self.payment_method_code == 'received_third_check' and
+                    self.payment_type == 'inbound'
+            ):
+                line_vals_list[0][
+                    'account_id'] = self.check_ids.get_third_check_account().id
+                line_vals_list[0]['name'] = _('Receive check %s') % self.name
+    
+            elif (
+                    self.payment_method_code == 'delivered_third_check' and
+                    self.payment_type == 'transfer'):
+                line_vals_list[0][
+                    'account_id'] = self.check_ids.get_third_check_account().id
+                line_vals_list[0]['name'] = _('Transfer checks %s') % self.name
+    
+            elif self.destination_journal_id.type == 'cash':
+                line_vals_list[0][
+                    'account_id'] = self.check_ids.get_third_check_account().id
+                line_vals_list[0]['name'] = _('Sell check %s') % ', '.join(
+                        self.check_ids.mapped('name'))
+            '''
 
         return line_vals_list
 
@@ -569,7 +570,7 @@ class AccountPayment(models.Model):
 
         force_account_id = self._context.get('force_account_id')
         all_moves_vals = []
-        for rec in self:
+        for rec in self.with_context(skip_account_move_synchronization=True):
             moves_vals = super(AccountPayment, rec)._prepare_payment_moves()
             _logger.info("moves_vals %r" % moves_vals)
             # edit liquidity lines
