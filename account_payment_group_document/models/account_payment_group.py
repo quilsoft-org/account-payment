@@ -11,7 +11,7 @@ _logger = logging.getLogger(__name__)
 class AccountPaymentGroup(models.Model):
     _name = "account.payment.group"
     _inherit = ['account.payment.group', 'sequence.mixin']
-  
+
     _order = "payment_date desc, name desc, id desc"
     _check_company_auto = True
     _sequence_index = "receiptbook_id"
@@ -26,10 +26,8 @@ class AccountPaymentGroup(models.Model):
         check_company=True,
     )
     sequence_type = fields.Selection(
-        [('automatic', 'Automatic'), ('manual', 'Manual')],
-        string='Sequence Type',
-        default='automatic',
-        related="receiptbook_id.sequence_type"
+        related="receiptbook_id.sequence_type",
+        readonly=True
     )
     document_type_id = fields.Many2one(
         related='receiptbook_id.l10n_latam_document_type_id',
@@ -69,7 +67,7 @@ class AccountPaymentGroup(models.Model):
             param = {'receiptbook_id': self.receiptbook_id.id}
 
         return where_string, param
-        
+
     @api.model
     def _deduce_sequence_number_reset(self, name):
         return 'never'
@@ -103,7 +101,7 @@ class AccountPaymentGroup(models.Model):
         """
 
         self.ensure_one()
-        if 'draft' in self.mapped('state'): 
+        if 'draft' in self.mapped('state'):
             last_sequence = self._get_last_sequence()
             new = not last_sequence
             if new:
