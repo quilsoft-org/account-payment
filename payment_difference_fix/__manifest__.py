@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 {
     "name": "Payment Difference Fix",
     "summary": """El sistema no estaba realizando los asientos por diferencia de cambio
@@ -16,5 +15,5 @@
         "account_ux",
         "account_payment_group",
     ],
-    'autoinstall': True,
+    'auto_install': True,
 }
