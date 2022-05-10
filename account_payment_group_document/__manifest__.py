@@ -1,6 +1,6 @@
 {
     "name": "Payment Groups with Accounting Documents",
-    "version": "14.0.1.1.0",
+    "version": "14.0.1.1.1",
     "author": "ADHOC SA,Odoo Community Association (OCA), QUILSOFT",
     "license": "AGPL-3",
     "category": "Accounting",

@@ -19,7 +19,7 @@
 ##############################################################################
 {
     'name': 'Account Check Management',
-    'version': "14.0.1.3.1",
+    'version': "14.0.1.3.2",
     'category': 'Accounting',
     'summary': 'Accounting, Payment, Check, Third, Issue',
     'author': 'ADHOC SA, AITIC S.A.S, QUILSOFT',
