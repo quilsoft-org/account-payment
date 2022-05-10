@@ -8,7 +8,7 @@
     "author": "Quilsoft",
     "website": "http://www.quilsoft.com",
     "category": "Payments",
-    "version": "14.0.3.0.1",
+    "version": "14.0.3.0.0",
     "depends": [
         "base",
         "account",
