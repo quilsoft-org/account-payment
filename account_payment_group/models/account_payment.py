@@ -49,15 +49,15 @@ class AccountPaymentRegister(models.TransientModel):
 
         return payment_vals
 
-    @api.onchange('payment_type')
-    def _onchange_payment_type(self):
-        """
-        we disable change of partner_type if we came from a payment_group
-        but we still reset the journal
-        """
-        if not self._context.get('payment_group'):
-            return super(AccountPayment, self)._onchange_payment_type()
-        self.journal_id = False
+    #@api.onchange('payment_type')
+    #def _onchange_payment_type(self):
+    #    """
+    #    we disable change of partner_type if we came from a payment_group
+    #    but we still reset the journal
+    #    """
+    #    if not self._context.get('payment_group'):
+    #        return super(AccountPayment, self)._onchange_payment_type()
+    #    self.journal_id = False
 
 
 class AccountPayment(models.Model):
