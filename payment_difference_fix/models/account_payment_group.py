@@ -28,7 +28,7 @@ class AccountPayment(models.Model):
     difference_move_id = fields.Many2one(
         comodel_name="account.move",
         string="Difference Journal Entry",
-        required=True,
+
         readonly=True,
         ondelete="cascade",
         check_company=True,
