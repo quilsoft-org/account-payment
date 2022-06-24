@@ -552,12 +552,10 @@ class AccountPayment(models.Model):
 
 
     def _synchronize_from_moves(self, changed_fields):
-        ''' Update the account.payment regarding its related account.move.
-        Also, check both models are still consistent.
-        :param changed_fields: A set containing all modified fields on account.move.
-        '''
-        if self.payment_type  != 'transfer':
+        if  self and self[0].payment_type  != 'transfer':
            super(AccountPayment, self)._synchronize_from_moves(changed_fields)
+        elif not self and changed_fields:
+            super(AccountPayment, self)._synchronize_from_moves(changed_fields)
 
 
     def _prepare_payment_moves(self):
