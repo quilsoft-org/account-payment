@@ -1,6 +1,7 @@
 # © 2016 ADHOC SA
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
+from os import unlink
 from odoo import models, api, fields, _
 from odoo.exceptions import ValidationError
 import logging
@@ -652,7 +653,20 @@ class AccountPaymentGroup(models.Model):
             # al crear desde website odoo crea primero el pago y lo postea
             # y no debemos re-postearlo
             if not create_from_website and not create_from_expense:
-                rec.payment_ids.filtered(lambda x: x.state == "draft").action_post()
+                for payment_line in rec.payment_ids.filtered(lambda x: x.state == "draft"):
+                    # esta solucion es medio chapuzera (x2) pero
+                    # es la unica diponible. si el pago tiene otra moneda
+                    # modifico el valor del rate de la moneda a la fecha
+                    # para que cuando haga el asiento de diferencia de cambio
+                    # Use la cotizacion del pago y no la de la moneda
+                    # Luego vuelvo el rate al estado original :P 
+
+                    old_rate = False
+                    if payment_line.other_currency:
+                        old_rate, unlink_rate = payment_line.currency_id.sudo().set_temporal_rate(payment_line.date, 1/payment_line.exchange_rate)
+                    payment_line.action_post()
+                    if old_rate or unlink_rate:
+                        payment_line.currency_id.sudo().unset_temporal_rate(payment_line.date,old_rate,unlink_rate)
 
             counterpart_aml = rec.payment_ids.mapped("line_ids").filtered(
                 lambda r: not r.reconciled

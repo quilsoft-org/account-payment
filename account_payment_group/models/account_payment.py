@@ -114,7 +114,7 @@ class AccountPayment(models.Model):
         copy=False,
     )
     exchange_rate = fields.Float(
-        string='Exchange Rate',
+        string='Exchange Rate', 
         compute='_compute_exchange_rate',
         # readonly=False,
         # inverse='_inverse_exchange_rate',
@@ -131,6 +131,8 @@ class AccountPayment(models.Model):
     )
 
     """
+    Esto deberia irse si funciona el asiento de cambio
+
     @api.onchange('exchange_rate')
     def onchange_exchange_rate(self):
         if self.other_currency:
@@ -139,19 +141,29 @@ class AccountPayment(models.Model):
                 self.with_context(force_rate_to=self.exchange_rate)._synchronize_to_moves(['currency_id'])
     """
 
+    """
+        Esto deberia irse si funciona el asiento de cambio
+
+        def _prepare_move_line_default_vals(self, write_off_line_vals=None):
+        line_ids = self._prepare_move_line_default_vals(write_off_line_vals)
+        #if self.move_id.line_ids and 'skip_account_move_synchronization' not in self._context:
+        #    self.move_id.line_ids = False
+        return line_ids"""
+        
     def _synchronize_to_moves(self, changed_fields):
         payment_other_currency = self.filtered(lambda payment: payment.other_currency)
         payment_company_currency = self - payment_other_currency
-        for payment in payment_other_currency: 
-            _logger.info(payment.exchange_rate)
+        #if self.move_id.line_ids and 'skip_account_move_synchronization' not in self._context:
+        #    self.move_id.line_ids = False
 
+        for payment in payment_other_currency: 
             super(AccountPayment, payment.with_context(force_rate_to=payment.exchange_rate))._synchronize_to_moves(changed_fields)
         super(AccountPayment, payment_company_currency)._synchronize_to_moves(changed_fields)
 
+    """
+    Esto deberia irse si funciona el asiento de cambio
     def action_post(self):
-        _logger.info('action_post')
         payment_other_currency = self.filtered(lambda payment: payment.other_currency)
-        _logger.info(payment_other_currency)
         payment_company_currency = self - payment_other_currency
         for payment in payment_other_currency: 
             _logger.info(payment.exchange_rate)
@@ -160,6 +172,7 @@ class AccountPayment(models.Model):
             _logger.info(p._context)
             super(AccountPayment, p).action_post()
         super(AccountPayment, payment_company_currency).action_post()
+    """
 
     @api.depends(
         'amount', 'payment_type', 'partner_type', 'amount_company_currency')
