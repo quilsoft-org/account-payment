@@ -194,7 +194,6 @@ class AccountPaymentGroup(models.Model):
         "account.payment",
         "payment_group_id",
         string="Payment Lines",
-        ondelete="cascade",
         copy=False,
         # readonly=False,
         # states={
