@@ -662,6 +662,7 @@ class AccountPaymentGroup(models.Model):
                     # Luego vuelvo el rate al estado original :P 
 
                     old_rate = False
+                    unlink_rate = False
                     if payment_line.other_currency:
                         old_rate, unlink_rate = payment_line.currency_id.sudo().set_temporal_rate(payment_line.date, 1/payment_line.exchange_rate)
                     payment_line.action_post()
