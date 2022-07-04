@@ -222,6 +222,23 @@ class AccountPayment(models.Model):
             else:
                 force_amount_company_currency = False
             rec.force_amount_company_currency = force_amount_company_currency
+            _logger.info('_inverse_amount_company_currency %s ' % rec.amount_company_currency)
+            liquidity_lines, counterpart_lines, writeoff_lines = rec._seek_for_lines()
+
+            if liquidity_lines and liquidity_lines.debit:
+                liquidity_lines.debit = rec.amount_company_currency 
+            if liquidity_lines and liquidity_lines.credit:
+                liquidity_lines.credit = rec.amount_company_currency 
+
+            if counterpart_lines and counterpart_lines.debit:
+                counterpart_lines.debit = rec.amount_company_currency 
+
+            if counterpart_lines and counterpart_lines.credit:
+                counterpart_lines.credit = rec.amount_company_currency 
+            _logger.info(counterpart_lines.debit)
+            _logger.info(counterpart_lines.credit)
+            _logger.info(liquidity_lines.debit)
+            _logger.info(liquidity_lines.credit)
 
     @api.depends('amount', 'other_currency', 'force_amount_company_currency')
     def _compute_amount_company_currency(self):
@@ -247,6 +264,7 @@ class AccountPayment(models.Model):
             # if false, then it is a transfer
             rec.payment_type = (
                 rec.payment_type_copy and rec.payment_type_copy or 'transfer')
+
 
     @api.depends('payment_type')
     def _compute_payment_type_copy(self):
