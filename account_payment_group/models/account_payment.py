@@ -213,7 +213,8 @@ class AccountPayment(models.Model):
     # rouding odoo believes amount has changed)
     @api.onchange('amount_company_currency')
     def _inverse_amount_company_currency(self):
-        for rec in self.with_context(skip_account_move_synchronization=True):
+        for rec in self.with_context():
+            self.move_id.line_ids.unlink()
             if rec.other_currency and rec.amount_company_currency != \
                     rec.currency_id._convert(
                         rec.amount, rec.company_id.currency_id,
@@ -222,23 +223,46 @@ class AccountPayment(models.Model):
             else:
                 force_amount_company_currency = False
             rec.force_amount_company_currency = force_amount_company_currency
-            _logger.info('_inverse_amount_company_currency %s ' % rec.amount_company_currency)
-            liquidity_lines, counterpart_lines, writeoff_lines = rec._seek_for_lines()
 
-            if liquidity_lines and liquidity_lines.debit:
-                liquidity_lines.debit = rec.amount_company_currency 
-            if liquidity_lines and liquidity_lines.credit:
-                liquidity_lines.credit = rec.amount_company_currency 
 
-            if counterpart_lines and counterpart_lines.debit:
-                counterpart_lines.debit = rec.amount_company_currency 
-
-            if counterpart_lines and counterpart_lines.credit:
-                counterpart_lines.credit = rec.amount_company_currency 
-            _logger.info(counterpart_lines.debit)
-            _logger.info(counterpart_lines.credit)
-            _logger.info(liquidity_lines.debit)
-            _logger.info(liquidity_lines.credit)
+    """NO BORRAR"""
+    # def write(self, vals):
+    #     if vals.get('force_amount_company_currency') and self.move_id:
+    #         liquidity_lines, counterpart_lines, writeoff_lines = self._seek_for_lines()
+    #
+    #         #Busco  todas las lineas actuales en el move y las mapeo
+    #         lines_counter = self.env['account.move.line'].browse(counterpart_lines.ids).read()
+    #         lines_liquidity = self.env['account.move.line'].browse(counterpart_lines.ids).read()
+    #         lines_writeoff = self.env['account.move.line'].browse(writeoff_lines.ids).read()
+    #
+    #         #Las elimino ya que las quiero reescribir y como tengo que escribirlasde a una
+    #         #me daerror deasiento descuadrado
+    #         self.move_id.line_ids.unlink()
+    #
+    #         if lines_counter:
+    #             lines_counter[0]['credit'] = float(vals.get('force_amount_company_currency'))
+    #
+    #         if lines_liquidity:
+    #             lines_liquidity[0]['debit'] = float(vals.get('force_amount_company_currency'))
+    #
+    #
+    #         all_lines = []
+    #
+    #         total_lines = lines_writeoff + lines_counter + lines_liquidity
+    #         #Creo el mapa para insertar laslineas en elmove
+    #         for rec in total_lines:
+    #             del rec['id']
+    #
+    #             for key in lines_liquidity[0].keys():
+    #                 if key.endswith('_id') and rec[key]:
+    #
+    #                     rec[key] =  rec[key][0]
+    #             all_lines.append(rec)
+    #
+    #         self.env['account.move.line'].create(all_lines)
+    #
+    #
+    #     return super(AccountPayment, self).write(vals)
 
     @api.depends('amount', 'other_currency', 'force_amount_company_currency')
     def _compute_amount_company_currency(self):
