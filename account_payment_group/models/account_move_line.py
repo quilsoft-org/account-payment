@@ -54,3 +54,16 @@ class AccountMoveLine(models.Model):
         compute='_compute_payment_group_matched_amount',
         currency_field='company_currency_id',
     )
+
+
+    def create(self, vals_list):
+        for val in vals_list:
+            move_id = val.get('move_id')
+            if move_id:
+                move = self.env['account.move'].search([('id','=', move_id)])
+                if move.payment_id and move.payment_id.force_amount_company_currency:
+                    if val['debit']:
+                        val['debit'] = move.payment_id.force_amount_company_currency
+                    if val['credit']:
+                        val['credit'] = move.payment_id.force_amount_company_currency
+        return super(AccountMoveLine, self).create(vals_list)
