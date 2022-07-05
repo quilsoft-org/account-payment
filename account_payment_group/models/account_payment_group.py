@@ -677,7 +677,12 @@ class AccountPaymentGroup(models.Model):
             # porque la cuenta podria ser no recivible y ni conciliable
             # (por ejemplo en sipreco)
             if counterpart_aml and rec.to_pay_move_line_ids:
-                (counterpart_aml + (rec.to_pay_move_line_ids)).reconcile()
+                if not counterpart_aml.account_id.currency_id:
+                    no_exchange_difference = True
+                else:
+                    no_exchange_difference = False
+
+                (counterpart_aml + (rec.to_pay_move_line_ids)).with_context(no_exchange_difference=no_exchange_difference).reconcile()
 
             rec.state = "posted"
         return True
