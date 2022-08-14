@@ -14,7 +14,7 @@ class L10nLatamDocumentType(models.Model):
             ("supplier_payment", "Supplier Payment"),
         ],
         ondelete={
-            "customer_payment": "set default",
-            "supplier_payment": "set default",
+            "customer_payment": "cascade",
+            "supplier_payment": "cascade",
         },
     )

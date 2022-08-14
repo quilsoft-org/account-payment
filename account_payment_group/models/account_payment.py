@@ -74,7 +74,7 @@ class AccountPayment(models.Model):
     partner_type = fields.Selection(required=False)
     payment_type = fields.Selection(
         selection_add=[("transfer", "Transferencia")],
-        ondelete={"transfer": "set default"},
+        ondelete={"transfer": "cascade"},
         required=False,
     )
 
