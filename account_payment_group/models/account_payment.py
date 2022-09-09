@@ -129,7 +129,10 @@ class AccountPayment(models.Model):
         readonly=True,
         states={'draft': [('readonly', False)]},
     )
-
+    paired_internal_transfer_payment_id = fields.Many2one('account.payment',
+                                                          help="When an internal transfer is posted, a paired payment is created. "
+                                                               "They are cross referenced trough this field",
+                                                          copy=False)
     """
     Esto deberia irse si funciona el asiento de cambio
 
@@ -160,19 +163,44 @@ class AccountPayment(models.Model):
             super(AccountPayment, payment.with_context(force_rate_to=payment.exchange_rate))._synchronize_to_moves(changed_fields)
         super(AccountPayment, payment_company_currency)._synchronize_to_moves(changed_fields)
 
-    """
-    Esto deberia irse si funciona el asiento de cambio
+
     def action_post(self):
-        payment_other_currency = self.filtered(lambda payment: payment.other_currency)
-        payment_company_currency = self - payment_other_currency
-        for payment in payment_other_currency: 
-            _logger.info(payment.exchange_rate)
-            p = payment.with_context(force_rate_to=payment.exchange_rate)
-            _logger.info('p._context')
-            _logger.info(p._context)
-            super(AccountPayment, p).action_post()
-        super(AccountPayment, payment_company_currency).action_post()
-    """
+        res = super(AccountPayment, self).action_post()
+        self.filtered(
+            lambda pay: pay.payment_type  == 'transfer' and not pay.paired_internal_transfer_payment_id
+        )._create_paired_internal_transfer_payment()
+
+        return res
+
+    def _create_paired_internal_transfer_payment(self):
+        ''' When an internal transfer is posted, a paired payment is created
+        with opposite payment_type and swapped journal_id & destination_journal_id.
+        Both payments liquidity transfer lines are then reconciled.
+        '''
+        for payment in self:
+
+            paired_payment = payment.copy({
+                'journal_id': payment.destination_journal_id.id,
+                'destination_journal_id': payment.journal_id.id,
+                'payment_type': 'transfer',
+                'move_id': None,
+                'ref': payment.ref,
+                'paired_internal_transfer_payment_id': payment.id,
+                'date': payment.date,
+            })
+
+            payment.paired_internal_transfer_payment_id = paired_payment
+            paired_payment.move_id._post(soft=False)
+
+
+            body = _('This payment has been created from <a href=# data-oe-model=account.payment data-oe-id=%d>%s</a>') % (payment.id, payment.name)
+            paired_payment.message_post(body=body)
+            body = _('A second payment has been created: <a href=# data-oe-model=account.payment data-oe-id=%d>%s</a>') % (paired_payment.id, paired_payment.name)
+            payment.message_post(body=body)
+
+            lines = (payment.move_id.line_ids + paired_payment.move_id.line_ids).filtered(
+                lambda l: l.account_id == payment.destination_account_id and not l.reconciled)
+            lines.reconcile()
 
     @api.depends(
         'amount', 'payment_type', 'partner_type', 'amount_company_currency')
@@ -421,6 +449,7 @@ class AccountPayment(models.Model):
         If we are paying a payment gorup with paylines, we use account
         of lines that are going to be paid
         """
+        pired_payment = self.search([('paired_internal_transfer_payment_id','=',self.id)])
         if self.payment_type == 'transfer':
             self.destination_account_id = self.journal_id.company_id.transfer_account_id
         else:
@@ -537,7 +566,8 @@ class AccountPayment(models.Model):
                     'debit':-liquidity_balance if liquidity_balance < 0.0 else 0.0,
                     'credit': liquidity_balance if liquidity_balance > 0.0 else 0.0,
                     'partner_id': self.partner_id.id,
-                    'account_id': self.journal_id.payment_credit_account_id.id if liquidity_balance < 0.0 else self.journal_id.payment_debit_account_id.id,
+                    'account_id': (self.company_id.transfer_account_id.id )if self.paired_internal_transfer_payment_id else self.journal_id.payment_debit_account_id.id
+                                            if not self.paired_internal_transfer_payment_id else self.company_id.transfer_account_id.id,
                 },
                 # Receivable / Payable.
                 {
@@ -548,7 +578,8 @@ class AccountPayment(models.Model):
                     'debit':  -counterpart_balance if counterpart_balance < 0.0 else 0.0,
                     'credit':counterpart_balance if counterpart_balance > 0.0 else 0.0,
                     'partner_id': self.partner_id.id,
-                    'account_id': self.destination_journal_id.payment_credit_account_id.id if liquidity_balance < 0.0 else self.destination_journal_id.payment_debit_account_id.id,
+                    'account_id': (self.company_id.transfer_account_id.id)
+                    if not self.paired_internal_transfer_payment_id else self.journal_id.payment_debit_account_id.id
                 },
             ]
             if not self.currency_id.is_zero(write_off_amount_currency):
