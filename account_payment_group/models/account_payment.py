@@ -133,25 +133,10 @@ class AccountPayment(models.Model):
                                                           help="When an internal transfer is posted, a paired payment is created. "
                                                                "They are cross referenced trough this field",
                                                           copy=False)
-    """
-    Esto deberia irse si funciona el asiento de cambio
 
-    @api.onchange('exchange_rate')
-    def onchange_exchange_rate(self):
-        if self.other_currency:
-            #self.move_id.line_ids = False
-            if self.move_id and len(self.move_id.line_ids) :
-                self.with_context(force_rate_to=self.exchange_rate)._synchronize_to_moves(['currency_id'])
-    """
 
-    """
-        Esto deberia irse si funciona el asiento de cambio
-
-        def _prepare_move_line_default_vals(self, write_off_line_vals=None):
-        line_ids = self._prepare_move_line_default_vals(write_off_line_vals)
-        #if self.move_id.line_ids and 'skip_account_move_synchronization' not in self._context:
-        #    self.move_id.line_ids = False
-        return line_ids"""
+    transfer_with_brige_accounts = fields.Boolean(string="Usar cuenta puente de transferencia",default=False,
+                                                  help="If this field is  true, each transfer will have two account.move with account bridge")
         
     def _synchronize_to_moves(self, changed_fields):
         payment_other_currency = self.filtered(lambda payment: payment.other_currency)
@@ -166,9 +151,10 @@ class AccountPayment(models.Model):
 
     def action_post(self):
         res = super(AccountPayment, self).action_post()
-        self.filtered(
-            lambda pay: pay.payment_type  == 'transfer' and not pay.paired_internal_transfer_payment_id
-        )._create_paired_internal_transfer_payment()
+        if self.transfer_with_brige_accounts:
+            self.filtered(
+                lambda pay: pay.payment_type  == 'transfer' and not pay.paired_internal_transfer_payment_id
+            )._create_paired_internal_transfer_payment()
 
         return res
 
@@ -555,33 +541,58 @@ class AccountPayment(models.Model):
                 self.date,
                 partner=self.partner_id,
             )
-
-            line_vals_list = [
-                # Liquidity line.
-                {
-                    'name': liquidity_line_name or default_line_name,
-                    'date_maturity': self.date,
-                    'amount_currency': liquidity_amount_currency,
-                    'currency_id': currency_id,
-                    'debit':-liquidity_balance if liquidity_balance < 0.0 else 0.0,
-                    'credit': liquidity_balance if liquidity_balance > 0.0 else 0.0,
-                    'partner_id': self.partner_id.id,
-                    'account_id': (self.company_id.transfer_account_id.id )if self.paired_internal_transfer_payment_id else self.journal_id.payment_debit_account_id.id
-                                            if not self.paired_internal_transfer_payment_id else self.company_id.transfer_account_id.id,
-                },
-                # Receivable / Payable.
-                {
-                    'name': self.payment_reference or default_line_name,
-                    'date_maturity': self.date,
-                    'amount_currency': counterpart_amount_currency,
-                    'currency_id': currency_id,
-                    'debit':  -counterpart_balance if counterpart_balance < 0.0 else 0.0,
-                    'credit':counterpart_balance if counterpart_balance > 0.0 else 0.0,
-                    'partner_id': self.partner_id.id,
-                    'account_id': (self.company_id.transfer_account_id.id)
-                    if not self.paired_internal_transfer_payment_id else self.journal_id.payment_debit_account_id.id
-                },
-            ]
+            if self.transfer_with_brige_accounts:
+                line_vals_list = [
+                    # Liquidity line.
+                    {
+                        'name': liquidity_line_name or default_line_name,
+                        'date_maturity': self.date,
+                        'amount_currency': liquidity_amount_currency,
+                        'currency_id': currency_id,
+                        'debit':-liquidity_balance if liquidity_balance < 0.0 else 0.0,
+                        'credit': liquidity_balance if liquidity_balance > 0.0 else 0.0,
+                        'partner_id': self.partner_id.id,
+                        'account_id': (self.company_id.transfer_account_id.id )if self.paired_internal_transfer_payment_id else self.journal_id.payment_debit_account_id.id
+                                                if not self.paired_internal_transfer_payment_id else self.company_id.transfer_account_id.id,
+                    },
+                    # Receivable / Payable.
+                    {
+                        'name': self.payment_reference or default_line_name,
+                        'date_maturity': self.date,
+                        'amount_currency': counterpart_amount_currency,
+                        'currency_id': currency_id,
+                        'debit':  -counterpart_balance if counterpart_balance < 0.0 else 0.0,
+                        'credit':counterpart_balance if counterpart_balance > 0.0 else 0.0,
+                        'partner_id': self.partner_id.id,
+                        'account_id': (self.company_id.transfer_account_id.id)
+                        if not self.paired_internal_transfer_payment_id else self.journal_id.payment_debit_account_id.id
+                    },
+                ]
+            else:
+                line_vals_list = [
+                    # Liquidity line.
+                    {
+                        'name': liquidity_line_name or default_line_name,
+                        'date_maturity': self.date,
+                        'amount_currency': liquidity_amount_currency,
+                        'currency_id': currency_id,
+                        'debit': -liquidity_balance if liquidity_balance < 0.0 else 0.0,
+                        'credit': liquidity_balance if liquidity_balance > 0.0 else 0.0,
+                        'partner_id': self.partner_id.id,
+                        'account_id': self.journal_id.payment_credit_account_id.id if liquidity_balance < 0.0 else self.journal_id.payment_debit_account_id.id,
+                    },
+                    # Receivable / Payable.
+                    {
+                        'name': self.payment_reference or default_line_name,
+                        'date_maturity': self.date,
+                        'amount_currency': counterpart_amount_currency,
+                        'currency_id': currency_id,
+                        'debit': -counterpart_balance if counterpart_balance < 0.0 else 0.0,
+                        'credit': counterpart_balance if counterpart_balance > 0.0 else 0.0,
+                        'partner_id': self.partner_id.id,
+                        'account_id': self.destination_journal_id.payment_credit_account_id.id if liquidity_balance < 0.0 else self.destination_journal_id.payment_debit_account_id.id,
+                    },
+                ]
             if not self.currency_id.is_zero(write_off_amount_currency):
                 # Write-off line.
                 line_vals_list.append({

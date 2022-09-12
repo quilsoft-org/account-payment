@@ -157,6 +157,11 @@
             <field name="destination_account_id" position="attributes">
                 <attribute name="invisible">True</attribute>
             </field>
+
+             <field name="payment_method_id" position="after">
+                <field name="transfer_with_brige_accounts"/>
+            </field>
+
             <field name="is_internal_transfer" position="attributes">
                 <attribute name="invisible">True</attribute>
             </field>
