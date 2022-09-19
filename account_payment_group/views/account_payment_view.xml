@@ -159,7 +159,7 @@
             </field>
 
              <field name="payment_method_id" position="after">
-                <field name="transfer_with_brige_accounts"/>
+                <field name="transfer_with_brige_accounts" attrs="{'readonly':[('state','!=','draft')]}"/>
             </field>
 
             <field name="is_internal_transfer" position="attributes">

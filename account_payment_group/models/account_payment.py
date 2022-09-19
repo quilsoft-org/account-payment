@@ -151,10 +151,11 @@ class AccountPayment(models.Model):
 
     def action_post(self):
         res = super(AccountPayment, self).action_post()
-        if self.transfer_with_brige_accounts:
-            self.filtered(
-                lambda pay: pay.payment_type  == 'transfer' and not pay.paired_internal_transfer_payment_id
-            )._create_paired_internal_transfer_payment()
+        for rec in self:
+            if rec.transfer_with_brige_accounts:
+                rec.filtered(
+                    lambda pay: pay.payment_type  == 'transfer' and not pay.paired_internal_transfer_payment_id
+                )._create_paired_internal_transfer_payment()
 
         return res
 
