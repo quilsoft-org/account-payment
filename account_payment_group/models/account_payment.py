@@ -542,6 +542,7 @@ class AccountPayment(models.Model):
                 self.date,
                 partner=self.partner_id,
             )
+            is_company_currency = self.company_id.currency_id.id == currency_id
             if self.transfer_with_brige_accounts:
                 line_vals_list = [
                     # Liquidity line.
@@ -575,7 +576,7 @@ class AccountPayment(models.Model):
                     {
                         'name': liquidity_line_name or default_line_name,
                         'date_maturity': self.date,
-                        'amount_currency': liquidity_amount_currency,
+                        'amount_currency': liquidity_amount_currency *(-1 if not is_company_currency else 1),
                         'currency_id': currency_id,
                         'debit': -liquidity_balance if liquidity_balance < 0.0 else 0.0,
                         'credit': liquidity_balance if liquidity_balance > 0.0 else 0.0,
@@ -586,7 +587,7 @@ class AccountPayment(models.Model):
                     {
                         'name': self.payment_reference or default_line_name,
                         'date_maturity': self.date,
-                        'amount_currency': counterpart_amount_currency,
+                        'amount_currency': counterpart_amount_currency *(-1 if not is_company_currency else 1),
                         'currency_id': currency_id,
                         'debit': -counterpart_balance if counterpart_balance < 0.0 else 0.0,
                         'credit': counterpart_balance if counterpart_balance > 0.0 else 0.0,
