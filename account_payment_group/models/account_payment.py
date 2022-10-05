@@ -63,6 +63,14 @@ class AccountPaymentRegister(models.TransientModel):
 class AccountPayment(models.Model):
     _inherit = "account.payment"
 
+    partner_bank_id = fields.Many2one(
+        comodel_name='res.partner.bank',
+        string="Recipient Bank Account",
+        readonly=False,
+        store=True,
+        compute='_compute_partner_bank_id',
+    )
+
 
     destination_journal_id = fields.Many2one('account.journal', string='Transferir a',
                                              domain="[('type', 'in', ('bank', 'cash')), ('company_id', '=', company_id)]")
@@ -430,6 +438,14 @@ class AccountPayment(models.Model):
             payment.payment_group_id.post()
         return payment
 
+    @api.depends('available_partner_bank_ids', 'journal_id','destination_journal_id')
+    def _compute_partner_bank_id(self):
+        ''' The default partner_bank_id will be the first available on the partner. '''
+        for pay in self:
+            if pay.payment_type == 'transfer' and pay.destination_journal_id:
+                pay.partner_bank_id = pay.destination_journal_id.bank_account_id.id
+            else:
+                return super(AccountPayment, self)._compute_partner_bank_id()
     @api.depends('journal_id', 'partner_id', 'partner_type', 'is_internal_transfer')
     def _compute_destination_account_id(self):
         """

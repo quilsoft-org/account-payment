@@ -162,6 +162,10 @@
                 <field name="transfer_with_brige_accounts" attrs="{'readonly':[('state','!=','draft')]}"/>
             </field>
 
+            <field name="partner_bank_id" position="replace">
+                <field name="partner_bank_id" readonly="1"/>
+            </field>
+
             <field name="is_internal_transfer" position="attributes">
                 <attribute name="invisible">True</attribute>
             </field>
