@@ -2,7 +2,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 {
     "name": "Account Payment with Multiple methods",
-    "version": "15.0.1.2.0",
+    "version": "15.0.1.4.0",
     "category": "Accounting",
     "website": "www.adhoc.com.ar",
     "author": "ADHOC SA, AITIC S.A.S",
@@ -29,7 +29,7 @@
         'views/account_payment_group_view.xml',
         'views/account_journal_dashboard_view.xml',
         'views/report_payment_group.xml',
-        #'data/decimal_precision_data.xml',
+        'data/decimal_precision_data.xml',
         'data/l10n_latam.document.type.csv',
         'data/mail_template_data.xml',
         'data/account_payment_data.xml',
