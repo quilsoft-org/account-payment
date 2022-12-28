@@ -26,6 +26,7 @@ class ResCurrency(models.Model):
         self.ensure_one()
         rate = self.rate_ids.filtered(lambda rate: rate.name==date)
         if len(rate):
+            rate = sorted(rate, key=lambda r: r.id, reverse=True)[0]
             old_rate = rate.rate
             rate.rate = new_rate
             return old_rate, False
