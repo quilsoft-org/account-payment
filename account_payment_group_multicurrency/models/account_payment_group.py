@@ -72,11 +72,14 @@ class AccountPaymentGroup(models.Model):
                 #siempre y cuando la moneda del account.move.line su moneda
                 #no sea distinta a la de la moneda base
                 no_exchange_difference = True
-                if counterpart_aml.currency_id and counterpart_aml.currency_id != rec.company_id.currency_id:
-                    #Si la moneda del account.move.line es diferente a la moneda
-                    #de la company, valido que genere diferencial cambiarion 
-                    #de perdia o ganancia, segun validacion nativa de odoo
-                    no_exchange_difference = False
+                if not counterpart_aml.account_id.currency_id:
+                    no_exchange_difference = True
+                if counterpart_aml.account_id.currency_id:
+                    if counterpart_aml.currency_id and counterpart_aml.currency_id != rec.company_id.currency_id:
+                        #Si la moneda del account.move.line es diferente a la moneda
+                        #de la company, valido que genere diferencial cambiarion 
+                        #de perdia o ganancia, segun validacion nativa de odoo
+                        no_exchange_difference = False
                 (counterpart_aml + (rec.to_pay_move_line_ids)).with_context(no_exchange_difference=no_exchange_difference).reconcile()
             rec.state = "posted"
         return True
