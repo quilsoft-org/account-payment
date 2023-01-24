@@ -26,7 +26,6 @@ class AccountPaymentGroup(models.Model):
         check_company=True,
     )
     sequence_type = fields.Selection(
-        [('automatic', 'Automatic'), ('manual', 'Manual')],
         string='Sequence Type',
         default='automatic',
         related="receiptbook_id.sequence_type"
