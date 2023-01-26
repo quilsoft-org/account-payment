@@ -10,6 +10,6 @@
     "depends": ["account_payment_group"],
     "data": [],
     "demo": [],
-    'auto-install': True,
+    'auto_install': True,
     "sequence": 1,
 }
