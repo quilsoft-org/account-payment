@@ -421,6 +421,11 @@ class AccountPayment(models.Model):
             create_payment_group = \
                 create_from_statement or create_from_website or create_from_expense
             if create_payment_group:
+                logging.info("-----------DIARIO-----------------")
+                logging.info(vals_list)
+                logging.info(vals)
+                logging.info(vals.get('journal_id'))
+
                 company_id = self.env['account.journal'].browse(
                     vals.get('journal_id')).company_id.id
                 payment_group = self.env['account.payment.group'].create({
