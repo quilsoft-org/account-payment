@@ -57,13 +57,13 @@ class AccountMoveLine(models.Model):
 
 
     def create(self, vals_list):
-        for val in vals_list:
-            move_id = val.get('move_id')
+        if vals_list and 'move_id' in vals_list:
+            move_id = vals_list.get('move_id', False)
             if move_id:
                 move = self.env['account.move'].search([('id','=', move_id)])
                 if move.payment_id and move.payment_id.force_amount_company_currency:
-                    if val['debit']:
-                        val['debit'] = move.payment_id.force_amount_company_currency
-                    if val['credit']:
-                        val['credit'] = move.payment_id.force_amount_company_currency
+                    if vals_list['debit']:
+                        vals_list['debit'] = move.payment_id.force_amount_company_currency
+                    if vals_list['credit']:
+                        vals_list['credit'] = move.payment_id.force_amount_company_currency
         return super(AccountMoveLine, self).create(vals_list)
