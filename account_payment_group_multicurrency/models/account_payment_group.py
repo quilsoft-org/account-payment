@@ -17,6 +17,7 @@ class AccountPaymentGroup(models.Model):
         create_from_statement = self._context.get("create_from_statement", False)
         create_from_expense = self._context.get("create_from_expense", False)
         for rec in self:
+            #Consumo de secuencia en el pago
             _logger.info(rec.name)
             if not rec.name or rec.name == '/':
                 rec._set_next_sequence()
