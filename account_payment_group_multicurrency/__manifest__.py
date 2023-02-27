@@ -7,7 +7,7 @@
     "website": "https://quilsoft.com",
     "author": "QUILSOFT",
     "license": "AGPL-3",
-    "depends": ["account_payment_group"],
+    "depends": ["account_payment_group", "account_payment_group_document"],
     "data": [],
     "demo": [],
     'auto_install': True,

@@ -3,8 +3,8 @@
 from os import unlink
 from odoo import models, api, fields, _
 from odoo.exceptions import ValidationError
-import logging
 
+import logging
 _logger = logging.getLogger(__name__)
 
 
@@ -12,11 +12,14 @@ class AccountPaymentGroup(models.Model):
     _inherit = "account.payment.group"
 
 
-    def post(self):
+    def post_old(self):
         create_from_website = self._context.get("create_from_website", False)
         create_from_statement = self._context.get("create_from_statement", False)
         create_from_expense = self._context.get("create_from_expense", False)
         for rec in self:
+            _logger.info(rec.name)
+            if not rec.name or rec.name == '/':
+                rec._set_next_sequence()
             # TODO if we want to allow writeoff then we can disable this
             # constrain and send writeoff_journal_id and writeoff_acc_id
             if not rec.payment_ids:
