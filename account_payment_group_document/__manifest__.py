@@ -14,7 +14,9 @@
         'wizards/account_payment_group_invoice_wizard_view.xml',
         'security/ir.model.access.csv',
         'security/security.xml',
-        'data/decimal_precision_data.xml',
+        # quitamos esto para que se pueda actualizar porque falla al intentar crear
+        # el registro porque no encuentra el identificador externo
+        #'data/decimal_precision_data.xml',
         'data/l10n_latam.document.type.csv',
     ],
     "demo": [
