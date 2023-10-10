@@ -14,7 +14,9 @@
         'wizards/account_payment_group_invoice_wizard_view.xml',
         'security/ir.model.access.csv',
         'security/security.xml',
-        'data/decimal_precision_data.xml',
+# quitamos esto para que no de el error
+# Key (name)=(Report Product Price) already exists
+#        'data/decimal_precision_data.xml',
         'data/l10n_latam.document.type.csv',
     ],
     "demo": [
