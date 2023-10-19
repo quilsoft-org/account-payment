@@ -152,12 +152,9 @@
             </button>
 
             <!-- when coming from payment group no need to show it
-
-                lo quito asi no deberia generar problemas en la vista padre no esta ..??//
-            <button name="button_open_payment_group" position="attributes">
-                <attribute name="invisible">1</attribute>
-            </button>
--->
+                <button name="button_open_payment_group" position="replace"/>
+            -->
+            
         </field>
     </record>
 
