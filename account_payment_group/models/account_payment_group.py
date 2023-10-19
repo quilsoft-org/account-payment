@@ -286,26 +286,6 @@ class AccountPaymentGroup(models.Model):
             'context': ctx,
         }
 
-    def action_add_payment_line(self):
-        view = self.env.ref('account_payment_group.view_account_payment_from_group_form')
-        ctx = {
-            'default_move_journal_types': ('bank', 'cash'),
-            'default_company_id': self.company_id.id,
-            'default_payment_group_id': self.id
-        }
-        return {
-            'name': _('Pay'),
-            'type': 'ir.actions.act_window',
-            'view_type': 'form',
-            'view_mode': 'form',
-            'res_model': 'account.payment',
-            'views': [(view.id, 'form')],
-            'view_id': view.id,
-            'target': 'new',
-            'context': ctx,
-        }
-
-
     def payment_print(self):
         self.ensure_one()
         self.sent = True
@@ -385,6 +365,9 @@ class AccountPaymentGroup(models.Model):
 
     @api.depends('partner_id', 'partner_type', 'company_id')
     def _compute_to_pay_move_lines(self):
+        # if payment group is being created from a payment we dont want to compute to_pay_move_lines
+        if self._context.get('created_automatically'):
+            return
         for rec in self:
             rec.add_all()
 
@@ -497,7 +480,10 @@ class AccountPaymentGroup(models.Model):
 
             # no volvemos a postear lo que estaba posteado
             if not created_automatically:
-                rec.payment_ids.filtered(lambda x: x.state == 'draft').action_post()
+                # lo hacemos de a uno porque sino el super de cheques ( https://github.com/odoo/odoo/blob/16.0/addons/l10n_latam_check/models/account_payment.py#L262 )
+                # permite pagar 2 o más veces con el mismo cheque
+                for pay in rec.payment_ids.filtered(lambda x: x.state == 'draft'):
+                    pay.action_post()
             # escribimos despues del post para que odoo no renumere el payment
             rec.payment_ids.name = rec.name
 
@@ -506,8 +492,12 @@ class AccountPaymentGroup(models.Model):
                     rec.payment_ids.mapped('name')) and ', '.join(
                     rec.payment_ids.mapped('name')) or False
 
-            if not created_automatically:
-                counterpart_aml = rec.payment_ids.mapped('line_ids').filtered(
+            # Filtro porque los pagos electronicos solo pueden estar en pending si la transaccion esta en pending 
+            # y no los puedo conciliar esto no es un comportamiento del core
+            # sino que esta implementado en account_payment_ux
+            posted_payments = rec.payment_ids.filtered(lambda x: x.state == 'posted')
+            if not created_automatically and posted_payments:
+                counterpart_aml = posted_payments.mapped('line_ids').filtered(
                     lambda r: not r.reconciled and r.account_id.account_type in ('liability_payable', 'asset_receivable'))
                 if counterpart_aml and rec.to_pay_move_line_ids:
                     (counterpart_aml + (rec.to_pay_move_line_ids)).reconcile()
@@ -590,11 +580,11 @@ class AccountPaymentGroup(models.Model):
     @api.depends('company_id', 'partner_type')
     def _compute_receiptbook(self):
         for rec in self.filtered(lambda x: not x.receiptbook_id or x.receiptbook_id.company_id != x.company_id):
-            partner_type = self.partner_type or self._context.get(
+            partner_type = rec.partner_type or self._context.get(
                 'partner_type', self._context.get('default_partner_type', False))
             receiptbook = self.env[
                 'account.payment.receiptbook'].search([
                     ('partner_type', '=', partner_type),
-                    ('company_id', '=', self.company_id.id),
+                    ('company_id', '=', rec.company_id.id),
                 ], limit=1)
             rec.receiptbook_id = receiptbook

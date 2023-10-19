@@ -2,7 +2,7 @@
 # For copyright and license notices, see __manifest__.py file in module root
 # directory
 ##############################################################################
-from odoo import models, fields, Command,_
+from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 
 
@@ -30,7 +30,16 @@ class AccountPayment(models.Model):
     def _get_valid_liquidity_accounts(self):
         res = super()._get_valid_liquidity_accounts()
         if self.tax_withholding_id:
-            res += (self._get_withholding_repartition_line().account_id,)
+            # si es un withholding payment entonces la cuenta de liquidez puede ser cualquier cuenta utilizda en una
+            # repatition line ya que podemos estar cambiando de impuesto (y al llegar a este paso no sabemos el
+            # impuesto anterior) o estar cambiando entre rep line "invoice y refund". De hecho deberiamos ser hasta
+            # mas permisivos (tal vez assets account con reconcile = False? solo para este caso de withholding payment?)
+            # igual asi por ahora estamos y en 17 esto se depreciaria
+            rep_lines = self.env['account.tax.repartition.line'].search(
+                [('company_id', '=', self.company_id.id), '|',
+                    ('invoice_tax_id.type_tax_use', 'in', ['supplier', 'customer']),
+                    ('refund_tax_id.type_tax_use', 'in', ['supplier', 'customer'])])
+            res += tuple(rep_lines.mapped('account_id'))
 
         return res
 
@@ -64,17 +73,22 @@ class AccountPayment(models.Model):
         for withholding in withholdings:
             liquidity_lines, counterpart_lines, writeoff_lines = withholding._seek_for_lines()
             rep_line = withholding._get_withholding_repartition_line()
-            liquidity_lines._write({
-                'tax_repartition_line_id': rep_line.id,
-                'tax_line_id': rep_line.tax_id.id,
-            })
+            liquidity_lines.tax_repartition_line_id = rep_line
+            liquidity_lines.tax_line_id = rep_line.tax_id
         return res
 
     def action_draft(self):
         ''' posted -> draft '''
         withholdings = self.filtered(lambda x: x.tax_withholding_id)
         for withholding in withholdings:
+            # no podemos llamar a action_draft sin hacer esto porque action_draft termina llamando a
+            # move_id.button_draft y eso genera recomputo de lineas porque hay tax_ids involucrados. Es recomputo
+            # genera cambios no compatibles con un pago.
+            # por eso antes de llamar a super tenemos que borrar toda la info de impuestos
             liquidity_lines, counterpart_lines, writeoff_lines = withholding._seek_for_lines()
+            # antes de poder hacer el write hacemos este hack para poder pasar esta constraint
+            # https://github.com/odoo/odoo/blob/b03d4c643647/addons/account/models/account_move_line.py#L1416
+            liquidity_lines.parent_state = 'draft'
             liquidity_lines.write({
                 'tax_repartition_line_id': False,
                 'tax_line_id': False,
@@ -104,7 +118,20 @@ class AccountPayment(models.Model):
         if self.payment_method_code == 'withholding':
             if self.payment_type == 'transfer':
                 raise UserError(_('You can not use withholdings on transfers!'))
-            rep_line = self._get_withholding_repartition_line()
             res[0]['name'] = self.withholding_number or '/'
-            res[0]['account_id'] = rep_line.account_id.id
         return res
+
+    @api.model
+    def _get_trigger_fields_to_synchronize(self):
+        res = super()._get_trigger_fields_to_synchronize()
+        return res + ('withholding_number', 'tax_withholding_id')
+
+    def _compute_outstanding_account_id(self):
+        withholding_payments = self.filtered(lambda x: x.payment_method_code == 'withholding')
+        for withholding_payment in withholding_payments:
+            account = False
+            if self.tax_withholding_id:
+                rep_line = withholding_payment._get_withholding_repartition_line()
+                account = rep_line.account_id.id
+            withholding_payment.outstanding_account_id = account
+        return super(AccountPayment, self - withholding_payments)._compute_outstanding_account_id()

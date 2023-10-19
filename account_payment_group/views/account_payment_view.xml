@@ -26,6 +26,21 @@
 </record>
 
     <!-- view for payments from payment group, we need edit = true and create = true, we also clean some fields, we could also make and inherited view -->
+    <record id="view_account_payment_tree" model="ir.ui.view">
+        <field name="name">account.payment.tree</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_tree"/>
+        <field name="arch" type="xml">
+            <field name="payment_method_line_id" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </field>
+            <field name="journal_id" position="after">
+                <field name="payment_method_description" string="Payment Method" optional="show"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- view for payments from payment group, we need edit = true and create = true, we also clean some fields, we could also make and inherited view -->
     <record id="view_account_payment_from_group_tree" model="ir.ui.view">
         <field name="name">account.payment.tree</field>
         <field name="model">account.payment</field>
@@ -33,17 +48,8 @@
         <field name="priority">90</field>
         <field name="mode">primary</field>
         <field name="arch" type="xml">
-            <tree position="attributes">
-                <attribute name="create">0</attribute>
-            </tree>
-            <field name="payment_method_line_id" position="attributes">
-                <attribute name="invisible">1</attribute>
-            </field>
             <field name="name" position="attributes">
                 <attribute name="invisible">1</attribute>
-            </field>
-            <field name="journal_id" position="after">
-                <field name="payment_method_description" string="Payment Method"/>
             </field>
             <field name="amount_company_currency_signed" position="after">
                 <field name="l10n_ar_amount_company_currency_signed" widget="monetary" string="Amount" sum="Total"/>
@@ -62,7 +68,6 @@
         <field name="arch" type="xml">
             <form>
                 <field name="payment_group_id" invisible="1"/>
-                <field name="available_journal_ids" invisible="1"/>
             </form>
 
             <!-- TODO en v16 no haria falta agregar este campo ni cambiar el dominio porque odoo ya lo agrega -->
@@ -147,14 +152,9 @@
             </button>
 
             <!-- when coming from payment group no need to show it -->
-            <!-- <button name="button_open_payment_group" position="replace"/> -->
-            <field name="state" position="attributes">
+            <button name="button_open_payment_group" position="attributes">
                 <attribute name="invisible">1</attribute>
-            </field>
-            <div name="button_box" position="attributes">
-                <attribute name="invisible">1</attribute>
-
-            </div>
+            </button>
 
         </field>
     </record>

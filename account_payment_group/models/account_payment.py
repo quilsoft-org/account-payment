@@ -80,8 +80,6 @@ class AccountPayment(models.Model):
                 filtered_domain.append(('company_id', '=', pay.payment_group_id.company_id.id))
             pay.available_journal_ids = journals.filtered_domain(filtered_domain)
 
-
-
     @api.depends('payment_method_id')
     def _compute_payment_method_description(self):
         for rec in self:
@@ -168,12 +166,19 @@ class AccountPayment(models.Model):
     def create(self, vals_list):
         """ If a payment is created from anywhere else we create the payment group in top """
         recs = super().create(vals_list)
+        if self._context.get('avoid_create_payment_group'):
+            return recs
         for rec in recs.filtered(lambda x: not x.payment_group_id and not x.is_internal_transfer).with_context(
                 created_automatically=True):
             if not rec.partner_id:
+                # avoid creating payment group when creating entry of expenses paid by company.
+                # In this cases odoo creates a payment but is't not line a normal one, it's a payment without partner
+                # and custom journal items so we better avoid the payment group on top of it
+                if rec._fields.get('expense_sheet_id') and rec.expense_sheet_id:
+                    continue
                 raise ValidationError(_(
                     'Manual payments should not be created manually but created from Customer Receipts / Supplier Payments menus'))
-            rec.payment_group_id = self.env['account.payment.group'].create({
+            rec.payment_group_id = rec.env['account.payment.group'].create({
                 'company_id': rec.company_id.id,
                 'partner_type': rec.partner_type,
                 'partner_id': rec.partner_id.id,
@@ -239,10 +244,10 @@ class AccountPayment(models.Model):
             })
         return res
 
-    @api.model
-    def _get_trigger_fields_to_sincronize(self):
-        res = super()._get_trigger_fields_to_sincronize()
-        return res + ('force_amount_company_currency',)
+    # @api.model
+    # def _get_trigger_fields_to_synchronize(self):
+    #     res = super()._get_trigger_fields_to_synchronize()
+    #     return res + ('force_amount_company_currency',)
 
     @api.depends_context('default_is_internal_transfer')
     def _compute_is_internal_transfer(self):
