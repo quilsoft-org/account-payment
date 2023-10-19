@@ -151,11 +151,13 @@
                 <attribute name="confirm">IMPORTANTE: La validación de la línea de pago se debe hacer desde el recibo. La cancelación manual de una línea de pago se usa solo para correcciones y usos avanzados. Seguro desea continuar?</attribute>
             </button>
 
-            <!-- when coming from payment group no need to show it -->
+            <!-- when coming from payment group no need to show it
+
+                lo quito asi no deberia generar problemas en la vista padre no esta ..??//
             <button name="button_open_payment_group" position="attributes">
                 <attribute name="invisible">1</attribute>
             </button>
-
+-->
         </field>
     </record>
 
