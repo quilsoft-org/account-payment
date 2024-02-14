@@ -37,10 +37,12 @@ class AccountCheckOperation(models.Model):
     )
     operation = fields.Selection([
         # from payments
+        ('draft', 'draft'),
         ('holding', 'Receive'),
         ('deposited', 'Deposit'),
         ('selled', 'Sell'),
         ('delivered', 'Deliver'),
+        ('custody', 'custody'),
         # usado para hacer transferencias internas, es lo mismo que delivered
         # (endosado) pero no queremos confundir con terminos, a la larga lo
         # volvemos a poner en holding
@@ -190,6 +192,7 @@ class AccountCheck(models.Model):
         ('debited', 'Debited'),
         ('returned', 'Returned'),
         ('changed', 'Changed'),
+        ('custody', 'custody'),
         ('cancel', 'Cancel'),
     ],
         required=True,
@@ -315,25 +318,17 @@ class AccountCheck(models.Model):
                     rec.checkbook_id.state = 'used'
         return False
 
-    @api.constrains(
-        'type',
-        'owner_name',
-        'bank_id',
-    )
+    @api.constrains('type','owner_name','bank_id')
     def _check_unique(self):
         for rec in self:
             if rec.type == 'issue_check':
-                same_checks = self.search([
-                    ('checkbook_id', '=', rec.checkbook_id.id),
-                    ('type', '=', rec.type),
-                    ('number', '=', rec.number),
-                ])
+                same_checks = self.search([('checkbook_id', '=', rec.checkbook_id.id),('type', '=', rec.type),('number', '=', rec.number)])
                 same_checks -= self
                 if same_checks:
                     raise ValidationError(_(
-                        'Check Number (%s) must be unique per Checkbook!\n'
-                        '* Check ids: %s') % (
-                        rec.name, same_checks.ids))
+                            'Check Number (%s) must be unique per Checkbook!\n'
+                            '* Check ids: %s') % (
+                            rec.name, same_checks.ids))
             elif self.type == 'third_check':
                 # agregamos condicion de company ya que un cheque de terceros
                 # se puede pasar entre distintas cias
@@ -347,9 +342,9 @@ class AccountCheck(models.Model):
                 same_checks -= self
                 if same_checks:
                     raise ValidationError(_(
-                        'Check Number (%s) must be unique per Owner and Bank!'
-                        '\n* Check ids: %s') % (
-                        rec.name, same_checks.ids))
+                            'Check Number (%s) must be unique per Owner and Bank!'
+                            '\n* Check ids: %s') % (
+                            rec.name, same_checks.ids))
         return True
 
     def _del_operation(self, origin):
@@ -366,8 +361,7 @@ class AccountCheck(models.Model):
             rec.operation_ids[0].origin = False
             rec.operation_ids[0].unlink()
 
-    def _add_operation(
-            self, operation, origin, partner=None, date=False):
+    def _add_operation(self, operation, origin, partner=None, date=False):
         for rec in self:
             rec._check_state_change(operation)
             # agregamos validacion de fechas
@@ -390,7 +384,13 @@ class AccountCheck(models.Model):
                 'origin': '%s,%i' % (origin._name, origin.id),
                 'partner_id': partner and partner.id or False,
             }
-            rec.operation_ids.create(vals)
+            # only adds one operation type from origin -- added by elepe
+            _logger.info('attempting to create operation {} for check'.format(vals))
+            operation_found = rec.operation_ids.search([('check_id', '=', rec.id),
+                                                        ('operation', '=', vals['operation']),
+                                                        ('origin', '=', vals['origin'])])
+            if not operation_found:
+                rec.operation_ids.create(vals)
 
     @api.depends(
         'operation_ids.operation',
@@ -419,11 +419,10 @@ class AccountCheck(models.Model):
         # computing the value, we can just read it
         old_state = self.state
         operation_from_state_map = {
-            # 'draft': [False],
-            'holding': [
-                'draft', 'deposited', 'selled', 'delivered', 'transfered'],
+            'draft': ['draft'],
+            'holding': ['draft', 'deposited', 'selled', 'delivered', 'transfered'],
             'delivered': ['holding'],
-            'deposited': ['holding', 'rejected'],
+            'deposited': ['holding', 'rejected', 'custody'],
             'selled': ['holding'],
             'handed': ['draft'],
             'transfered': ['holding'],
@@ -434,12 +433,14 @@ class AccountCheck(models.Model):
             'changed': ['handed', 'holding'],
             'cancel': ['draft'],
             'reclaimed': ['rejected'],
+            'custody': ['holding'],
         }
         from_states = operation_from_state_map.get(operation)
         if not from_states:
             raise ValidationError(_(
                 'Operation %s not implemented for checks!') % operation)
-        if old_state not in from_states:
+        # different operation condition added by elepe
+        if old_state != operation and old_state not in from_states:
             raise ValidationError(_(
                 'You can not "%s" a check from state "%s"!\n'
                 'Check nbr (id): %s (%s)') % (
@@ -462,16 +463,13 @@ class AccountCheck(models.Model):
         self.ensure_one()
         if self.state in ['handed']:
             payment_values = self.get_payment_values(self.journal_id)
+            # don't force account when creating payment -- added by elepe
             payment = self.env['account.payment'].with_context(
-                #default_name=_('Check "%s" debit') % (self.name),
-                force_account_id=self.company_id._get_check_account(
-                    'deferred').id,
-                bank_debit=True
-            ).create(payment_values)
-            payment.action_post()
-            #self.post_payment_check(payment)
-            self.handed_reconcile(payment.line_ids.mapped('move_id'))
-            self._add_operation('debited', payment, date=payment.date)
+                default_name=_('Check "%s" debit') % self.name).create(payment_values)
+            _logger.info('bank debit payment {}'.format(payment_values))
+            self.post_payment_check(payment)
+            self.handed_reconcile(payment.move_id)
+            self._add_operation('debited', payment, date=payment.move_id.date)
 
     @api.model
     def post_payment_check(self, payment):
@@ -479,10 +477,8 @@ class AccountCheck(models.Model):
         parecido a los statements donde odoo ya lo genera posteado
         """
         # payment.post()
-        _logger.info('post_payment_check')
-        move = self.env['account.move'].with_context(default_type='entry').create(payment._prepare_move_line_default_vals())
-        move.post()
-        payment.write({'state': 'posted', 'move_name': move.name})
+        payment.action_post()
+        payment.write({'state': 'posted'})
 
     def handed_reconcile(self, move):
         """
@@ -491,15 +487,16 @@ class AccountCheck(models.Model):
         """
 
         self.ensure_one()
-        debit_account = self.company_id._get_check_account('deferred')
+        # don't use defered account from settings , use account defined in journal
+        debit_account = self.journal_id.payment_credit_account_id
 
         # conciliamos
         if debit_account.reconcile:
             operation = self._get_operation('handed')
-            '''if operation.origin._name == 'account.payment':
-                move_lines = operation.origin.move_line_ids
-            elif operation.origin._name == 'account.move':'''
-            move_lines = operation.origin.line_ids
+            if operation.origin._name == 'account.payment':
+                move_lines = operation.origin.move_id.line_ids
+            elif operation.origin._name == 'account.move':
+                move_lines = operation.origin.line_ids
             move_lines |= move.line_ids
             move_lines = move_lines.filtered(
                 lambda x: x.account_id == debit_account)
@@ -529,7 +526,7 @@ class AccountCheck(models.Model):
         account = self.env['account.account']
         for rec in self:
             credit_account = rec.journal_id.payment_credit_account_id
-            debit_account = credit_account = rec.company_id._get_check_account('holding')
+            debit_account = rec.journal_id.payment_debit_account_id
             inbound_methods = rec.journal_id['inbound_payment_method_ids']
             outbound_methods = rec.journal_id['outbound_payment_method_ids']
             # si hay cuenta en diario y son iguales, y si los metodos de pago
@@ -541,7 +538,7 @@ class AccountCheck(models.Model):
             else:
                 account |= rec.company_id._get_check_account('holding')
         if len(account) != 1:
-            raise ValidationError(_('Error not specified'))
+            raise ValidationError(_('Account not defined in journals used for check'))
         return account
 
     @api.model
@@ -645,23 +642,27 @@ class AccountCheck(models.Model):
         self.ensure_one()
         if self.state in ['deposited', 'selled']:
             operation = self._get_operation(self.state)
-            if operation.origin._name == 'account.payment':
-                journal = operation.origin.destination_journal_id
-            # for compatibility with migration from v8
-            elif operation.origin._name == 'account.move':
-                journal = operation.origin.journal_id
+            if operation.origin:
+                if operation.origin._name == 'account.payment':
+                    journal = operation.origin.journal_id
+                # for compatibility with migration from v8
+                elif operation.origin._name == 'account.move':
+                    journal = operation.origin.journal_id
+                else:
+                    raise ValidationError(_(
+                        'The deposit operation is not linked to a payment.'
+                        'If you want to reject you need to do it manually.'))
             else:
                 raise ValidationError(_(
-                    'The deposit operation is not linked to a payment.'
-                    'If you want to reject you need to do it manually.'))
+                    'Check {} operation is not linked to a payment/move.'.format(operation.operation)))
             payment_vals = self.get_payment_values(journal)
             payment = self.env['account.payment'].with_context(
-                # default_name=_('Check "%s" rejection') % (self.name),
+                default_name=_('Check "%s" rejection') % (self.name),
                 force_account_id=self.company_id._get_check_account(
                     'rejected').id,
             ).create(payment_vals)
-            payment.action_post()
-            self._add_operation('rejected', payment, date=payment.date)
+            self.post_payment_check(payment)
+            self._add_operation('rejected', payment, date=payment.move_id.date)
         elif self.state == 'delivered':
             operation = self._get_operation(self.state, True)
             return self.action_create_debit_note(

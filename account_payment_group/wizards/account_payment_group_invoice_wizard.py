@@ -172,7 +172,7 @@ class AccountPaymentGroupInvoiceWizard(models.TransientModel):
 
         self = self.with_context(company_id=self.company_id.id, force_company=self.company_id.id)
         invoice_vals = self.get_invoice_vals()
-        line_vals =  {
+        line_vals = {
             'product_id': self.product_id.id,
             'price_unit': self.amount_untaxed,
             'tax_ids': [(6, 0, self.tax_ids.ids)],

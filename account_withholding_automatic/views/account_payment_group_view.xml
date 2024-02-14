@@ -3,7 +3,7 @@
     <data> 
 
         <!-- Supplier Receipt Form  -->
-        <record id="view_account_payment_group_form" model="ir.ui.view">
+        <record id="view_account_payment_group_form_auto" model="ir.ui.view">
             <field name="name">account.payment.group.form</field>
             <field name="model">account.payment.group</field>
             <field name="inherit_id" ref="account_payment_group.view_account_payment_group_form"/>

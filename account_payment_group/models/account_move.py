@@ -2,7 +2,10 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 from odoo import models, api, fields, _
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, UserError
+
+import logging
+_logger = logging.getLogger(__name__)
 
 
 class AccountMove(models.Model):
@@ -54,6 +57,9 @@ class AccountMove(models.Model):
 
     def action_account_invoice_payment_group(self):
         self.ensure_one()
+        to_pay_move_lines = self.open_move_line_ids
+        if not to_pay_move_lines:
+            raise UserError(_('Nothing to be paid on selected entries'))
         if self.state != 'posted' or self.payment_state not in ['not_paid', 'partial']:
             raise ValidationError(_('You can only register payment if invoice is posted and unpaid'))
         return {
@@ -69,8 +75,10 @@ class AccountMove(models.Model):
                 # con el default de payment group, preferimos mandar por aca
                 # ya que puede ser un contacto y no el commercial partner (y
                 # en los apuntes solo hay commercial partner)
+                'default_partner_type': 'customer' if to_pay_move_lines[0].account_id.internal_type == 'receivable'
+                else 'supplier',
                 'default_partner_id': self.partner_id.id,
-                'to_pay_move_line_ids': self.open_move_line_ids.ids,
+                'to_pay_move_line_ids': to_pay_move_lines.ids,
                 'pop_up': True,
                 # We set this because if became from other view and in the
                 # context has 'create=False' you can't crate payment lines
@@ -89,13 +97,13 @@ class AccountMove(models.Model):
         # validate_payment = not self._context.get('validate_payment')
         for rec in self:
             pay_journal = rec.pay_now_journal_id
-            if pay_journal and rec.state == 'posted' and rec.payment_state == 'not_paid':
+            if pay_journal and rec.state == 'posted' and rec.payment_state in ['not_paid', 'partial']:
                 # si bien no hace falta mandar el partner_type al paygroup
                 # porque el defaults lo calcula solo en funcion al tipo de
                 # cuenta, es mas claro mandarlo y podria evitar error si
                 # estamos usando cuentas cruzadas (payable, receivable) con
                 # tipo de factura
-                if rec.type in ['in_invoice', 'in_refund']:
+                if rec.move_type in ['in_invoice', 'in_refund']:
                     partner_type = 'supplier'
                 else:
                     partner_type = 'customer'
@@ -143,7 +151,7 @@ class AccountMove(models.Model):
                     'amount': abs(payment_group.payment_difference),
                     'journal_id': pay_journal.id,
                     'payment_method_id': payment_method.id,
-                    'payment_date': rec.invoice_date,
+                    'date': rec.invoice_date,
                 })
                 # if validate_payment:
                 payment_group.post()
@@ -167,7 +175,7 @@ class AccountMove(models.Model):
             result['res_id'] = self.payment_group_ids.id
         return result
 
-    @api.onchange('journal_id')
+    @api.onchange('journal_id', 'company_id')
     def _onchange_journal_reset_pay_now(self):
         # while not always it should be reseted (only if changing company) it's not so usual to set pay now first
         # and then change journal
@@ -176,3 +184,38 @@ class AccountMove(models.Model):
     def button_cancel(self):
         self.filtered(lambda x: x.state != 'draft' and x.pay_now_journal_id).write({'pay_now_journal_id': False})
         return super().button_cancel()
+
+    def button_draft(self):
+        self.filtered(lambda x: x.state == 'posted' and x.pay_now_journal_id).write({'pay_now_journal_id': False})
+        return super().button_draft()
+
+    def _get_last_sequence_domain(self, relaxed=False):
+        """ para transferencias no queremos que se enumere con el ultimo numero de asiento porque podria ser un
+        pago generado por un grupo de pagos y en ese caso el numero viene dado por el talonario de recibo/pago.
+        Entonces lo que hacemos es buscar ultimo numero solo en transferencias, pero como el campo
+        is_internal_transfer no está almacenado en el asiento, lo hacemos viendo que asientos no tienen
+        l10n_latam_document_type_id
+        Agregamos tambien en not self.payment_id para asientos que se generen a mano o asientos desde extractos
+        TODO: tal vez mejorar y hacer join de alguna manera? tal vez llevar y hacer store el payment_group_id related
+        del payment_id? de esa manera no hacemos criterio segun si es transferencia si no que en ambos lados lo hacemos
+        segun si tiene payment_group_id o no?
+        TODO: tal vez lo mejor sea cambiar para no guardar mas numero de recibo en el asiento, pero eso es un cambio
+        gigante
+        """
+        if self.journal_id.type in ('cash', 'bank') and (not self.payment_id or self.payment_id.is_internal_transfer):
+            # mandamos en contexto que estamos en esta condicion para poder meternos en el search que ejecuta super
+            # y que el pago de referencia que se usa para adivinar el tipo de secuencia sea un pago sin tipo de
+            # documento
+            where_string, param = super(
+                AccountMove, self.with_context(without_document_type=True))._get_last_sequence_domain(relaxed)
+            where_string += " AND l10n_latam_document_type_id is Null"
+        else:
+            where_string, param = super(AccountMove, self)._get_last_sequence_domain(relaxed)
+        return where_string, param
+
+    @api.model
+    def _search(self, args, offset=0, limit=None, order=None, count=False, access_rights_uid=None):
+        if self._context.get('without_document_type'):
+            args += [('l10n_latam_document_type_id', '=', False)]
+        return super()._search(args, offset=offset, limit=limit, order=order, count=count, access_rights_uid=access_rights_uid)
+

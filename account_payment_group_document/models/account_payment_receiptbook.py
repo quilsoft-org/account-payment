@@ -24,7 +24,6 @@ class AccountPaymentReceiptbook(models.Model):
         help="If set an email will be sent to the customer when the related"
         " account.payment.group has been posted.",
     )
-
     sequence = fields.Integer(
         'Sequence',
         help="Used to order the receiptbooks",
@@ -41,18 +40,19 @@ class AccountPaymentReceiptbook(models.Model):
         required=True,
         index=True,
     )
-    first_number = fields.Integer(
-        string='First Number',
-        default=1,
-        required=True
-    )
     next_number = fields.Integer(
         related='sequence_id.number_next_actual',
         readonly=False,
     )
 
-    # Evaluer crear secuencias manuales
-    # Lo dejo por eso
+    # payment_type = fields.Selection(
+    #     [('inbound', 'Inbound'), ('outbound', 'Outbound')],
+    #     # [('receipt', 'Receipt'), ('payment', 'Payment')],
+    #     string='Type',
+    #     required=True,
+    # )
+    # lo dejamos solo como ayuda para generar o no la secuencia pero lo que
+    # termina definiendo si es manual o por secuencia es si tiene secuencia
     sequence_type = fields.Selection(
         [('automatic', 'Automatic'), ('manual', 'Manual')],
         string='Sequence Type',
@@ -80,7 +80,6 @@ class AccountPaymentReceiptbook(models.Model):
     )
     padding = fields.Integer(
         'Number Padding',
-        default=8,
         help="automatically adds some '0' on the left of the 'Number' to get "
         "the required padding size."
     )
@@ -88,8 +87,50 @@ class AccountPaymentReceiptbook(models.Model):
         'Active',
         default=True,
     )
-    l10n_latam_document_type_id = fields.Many2one(
+    document_type_id = fields.Many2one(
         'l10n_latam.document.type',
         'Document Type',
         required=True,
     )
+
+    def write(self, vals):
+        """
+        If user change prefix we change prefix of sequence.
+        TODO: we can use related field but we need to implement manual
+        receipbooks with sequences. We should also make padding
+        related to sequence
+        """
+        prefix = vals.get('prefix')
+        for rec in self:
+            if prefix and rec.sequence_id:
+                rec.sequence_id.prefix = prefix
+        return super(AccountPaymentReceiptbook, self).write(vals)
+
+    @api.model
+    def create(self, vals):
+        sequence_type = vals.get(
+            'sequence_type',
+            self._context.get('default_sequence_type', False))
+        prefix = vals.get(
+            'prefix',
+            self._context.get('default_prefix', False))
+        company_id = vals.get(
+            'company_id',
+            self._context.get('default_company_id', False))
+
+        if (
+                sequence_type == 'automatic' and
+                not vals.get('sequence_id', False) and
+                company_id):
+            seq_vals = {
+                'name': vals['name'],
+                'implementation': 'no_gap',
+                'prefix': prefix,
+                'padding': 8,
+                'number_increment': 1
+            }
+            sequence = self.env['ir.sequence'].sudo().create(seq_vals)
+            vals.update({
+                'sequence_id': sequence.id
+            })
+        return super(AccountPaymentReceiptbook, self).create(vals)

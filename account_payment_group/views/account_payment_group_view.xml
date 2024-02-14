@@ -15,8 +15,8 @@
             <field name="payments_amount" sum="Total"/>
             <field name="state"/>
             <field name="company_id" groups="base.group_multi_company"/>
-            <field name="currency_id" attrs="{'invisible':True}"/>
-            <field name="partner_type" attrs="{'invisible':True}"/>
+            <field name="currency_id" invisible="1"/>
+            <field name="partner_type" invisible="1"/>
         </tree>
     </field>
 </record>
@@ -53,16 +53,16 @@
     <field name="model">account.payment.group</field>
     <field name="arch" type="xml">
         <form string="Register Payment">
-            <field name="account_internal_type" attrs="{'invisible':True}"/>
-            <field name="id" attrs="{'invisible':True}"/>
-            <field name="commercial_partner_id" attrs="{'invisible':True}"/>
-            <field name="partner_type" attrs="{'invisible':True}"/>
-            <field name="payment_subtype" attrs="{'invisible':True}"/>
-            <field name="pop_up" attrs="{'invisible':True}"/>
-            <field name="has_outstanding" attrs="{'invisible':True}"/>
+            <field name="account_internal_type" invisible="1"/>
+            <field name="id" invisible="1"/>
+            <field name="commercial_partner_id" invisible="1"/>
+            <field name="partner_type" invisible="1"/>
+            <field name="payment_subtype" invisible="1"/>
+            <field name="pop_up" invisible="1"/>
+            <field name="has_outstanding" invisible="1"/>
             <header>
                 <button name="action_payment_sent" type="object" string="Send by Email" attrs="{'invisible':['|', ('sent','=',True), ('state', '!=', 'posted')]}" class="oe_highlight" groups="base.group_user"/>
-                <field name="sent" attrs="{'invisible':True}"/>
+                <field name="sent" invisible="1"/>
                 <button name="action_payment_sent" type="object" string="Send by Email" attrs="{'invisible':['|', ('sent','=',False), ('state', '!=', 'posted')]}" groups="base.group_user"/>
                 <button name="payment_print" string="Print" type="object" attrs="{'invisible':['|', ('sent','=',True), ('state', '!=', 'posted')]}" class="oe_highlight" groups="base.group_user"/>
                 <button name="payment_print" string="Print" type="object" attrs="{'invisible':['|', ('sent','=',False), ('state', '!=', 'posted')]}" groups="base.group_user"/>
@@ -81,17 +81,16 @@
                             string="Journal Items" type="object"
                             groups="account.group_account_manager"
                             attrs="{'invisible':[('move_line_ids','=',[])]}" icon="fa-bars"/>
-                    <field name="move_line_ids" attrs="{'invisible':True}"/>
+                    <field name="move_line_ids" invisible="1"/>
                 </div>
-                <field name="id" attrs="{'invisible':True}"/>
+                <field name="id" invisible="1"/>
                 <div class="oe_title">
                     <h1></h1>
-                    <!-- <h1><field name="name"/></h1> -->
                 </div>
                 <group>
                     <group>
                         <field name="company_id" options="{'no_create': True, 'no_open': True}" groups="base.group_multi_company" invisible="context.get('pop_up')"/>
-                        <field name="currency_id" attrs="{'invisible':True}"/>
+                        <field name="currency_id" invisible="1"/>
                         <field name="partner_id" context="{'default_is_company': True, 'default_supplier': partner_type == 'supplier', 'default_customer': partner_type == 'customer'}" invisible="context.get('pop_up')"/>
                     </group>
                     <group>
@@ -123,9 +122,12 @@
                     <page string="Payment Lines" attrs="{'invisible': [('payment_subtype', '=', 'double_validation'), ('state', '=', 'draft')]}">
                     <!-- <page string="Payment Lines" autofocus="autofocus"> -->
                         <!-- no pudimos hacer que payment_difference se actualice cuando ponemos save and new. La unica que se me ocurre es si está guardado, podemos mandar el active_id y que sea un default en payments el que obtiene el valor -->
-
-
-                        <field name="payment_ids" context="{'default_payment_group_company_id': company_id, 'default_payment_type': partner_type == 'supplier' and 'outbound' or 'inbound', 'default_date': payment_date, 'default_partner_id': partner_id, 'default_partner_type': partner_type, 'payment_group': True, 'default_amount': payment_difference, 'tree_view_ref': 'account_payment_group.view_account_payment_from_group_tree', 'payment_group': True}" attrs="{'readonly': [('state', 'not in', ['draft', 'confirmed'])]}"/>
+                        <field name="payment_ids" context="{'default_payment_group_company_id': company_id,
+                         'default_payment_type': partner_type == 'supplier' and 'outbound' or 'inbound',
+                          'default_payment_date': payment_date, 'default_partner_id': partner_id, 'default_company_id': company_id,
+                           'default_partner_type': partner_type, 'payment_group': True,
+                            'tree_view_ref': 'account_payment_group.view_account_payment_from_group_tree'}"
+                               attrs="{'readonly': [('state', 'not in', ['draft', 'confirmed'])]}"/>
                     </page>
                     <page string="Debts" attrs="{'invisible': ['|', '|', ('pop_up', '=', True), ('payment_subtype', '!=', 'simple'), ('state', '!=', 'draft')]}">
                         <p>

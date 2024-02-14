@@ -18,8 +18,8 @@
 #
 ##############################################################################
 {
-    'author': 'ADHOC SA, QUILSOFT',
-    'website': 'www.adhoc.com.ar,',
+    'author': 'ADHOC SA',
+    'website': 'www.adhoc.com.ar',
     'license': 'AGPL-3',
     'category': 'Accounting & Finance',
     'data': [
@@ -39,5 +39,5 @@
     'installable': True,
     'name': 'Automatic Withholdings on Payments',
     'test': [],
-    'version': "14.0.1.1.0",
+    'version': "1.0.1",
 }

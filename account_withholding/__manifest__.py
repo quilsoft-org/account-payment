@@ -18,7 +18,7 @@
 #
 ##############################################################################
 {
-    'author': 'ADHOC SA, QUILSOFT',
+    'author': 'ADHOC SA',
     'website': 'www.adhoc.com.ar',
     'license': 'AGPL-3',
     'category': 'Accounting & Finance',
@@ -28,12 +28,12 @@
         'data/account_payment_method_data.xml',
     ],
     'depends': [
-        'account',
+        'account_payment_group',
         # for payment method description and company_id field on form view
         'account_payment_fix',
     ],
     'installable': True,
     'name': 'Withholdings on Payments',
     'test': [],
-    'version': "14.0.1.2.0",
+    'version': "1.0.5",
 }

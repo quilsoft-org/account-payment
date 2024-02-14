@@ -174,6 +174,9 @@ result = withholdable_base_amount * 0.10
             # por ahora no imprimimos el comment, podemos ver de llevarlo a
             # otro campo si es de utilidad
             vals.pop('comment')
+            if 'communication' in vals:
+                vals['communication_data'] = vals['communication']
+                vals.pop('communication')
             if payment_withholding:
                 payment_withholding.write(vals)
             else:
@@ -239,7 +242,6 @@ result = withholdable_base_amount * 0.10
         elif self.withholding_accumulated_payments == 'year':
             from_relative_delta = relativedelta(day=1, month=1)
         from_date = to_date + from_relative_delta
-
         previous_payment_groups_domain = common_previous_domain + [
             ('payment_date', '<=', to_date),
             ('payment_date', '>=', from_date),
@@ -251,8 +253,8 @@ result = withholdable_base_amount * 0.10
         # on posted payment group, we remove the cancel payments (not the
         # draft ones as they are also considered by public_budget)
         previous_payments_domain = common_previous_domain + [
-            ('date', '<=', to_date),
-            ('date', '>=', from_date),
+            ('move_id.date', '<=', to_date),
+            ('move_id.date', '>=', from_date),
             ('payment_group_id.state', 'not in',
                 ['draft', 'cancel', 'confirmed']),
             ('state', '!=', 'cancel'),

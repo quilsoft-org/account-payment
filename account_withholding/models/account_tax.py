@@ -8,8 +8,7 @@ class AccountTaxTemplate(models.Model):
         selection_add=[
             ('customer', 'Customer Payment'),
             ('supplier', 'Supplier Payment'),
-        ],
-        ondelete={'customer': 'cascade', 'supplier': 'cascade'}
+        ], ondelete={'customer': 'set default', 'supplier': 'set default'}
     )
 
 
@@ -23,8 +22,7 @@ class AccountTax(models.Model):
         selection_add=[
             ('customer', 'Customer Payment'),
             ('supplier', 'Supplier Payment'),
-        ],
-        ondelete={'customer': 'cascade', 'supplier': 'cascade'}
+        ], ondelete={'customer': 'set default', 'supplier': 'set default'}
     )
     amount = fields.Float(
         default=0.0,

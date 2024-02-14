@@ -61,6 +61,11 @@ class AccountPayment(models.Model):
         # compute='get_withholding_data',
         readonly=True,
     )
+    communication_data = fields.Char(
+        string='Memo',
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+    )
 
     def _get_counterpart_move_line_vals(self, invoice=False):
         vals = super(AccountPayment, self)._get_counterpart_move_line_vals(

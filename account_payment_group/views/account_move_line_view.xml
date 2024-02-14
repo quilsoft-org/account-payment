@@ -2,7 +2,7 @@
 <odoo>
 
 <!-- Journal Items -->
-<record id="view_move_line_tree" model="ir.ui.view">
+<record id="view_move_line_tree_from_group" model="ir.ui.view">
     <field name="name">account.move.line.tree</field>
     <field name="model">account.move.line</field>
     <field eval="99" name="priority"/>
@@ -14,16 +14,15 @@
             <field name="journal_id" options='{"no_open":True}'/>
             <field name="name"/>
             <field name="ref"/>
-            <field name="statement_id" attrs="{'invisible':True}"/>
+            <field name="statement_id" invisible="1"/>
             <field name="account_id" options='{"no_open":True}' domain="[('company_id', '=', company_id)]"/>
             <field name="balance" string="Amount"/>
             <field name="amount_residual" sum="Total"/>
             <field name="amount_currency" groups="base.group_multi_currency"/>
             <field name="amount_residual_currency" groups="base.group_multi_currency"/>
-            <field name="currency_id" attrs="{'invisible':True}"/>
-            <field name="company_currency_id" attrs="{'invisible':True}"/>
-            <field name="company_id" attrs="{'invisible':True}"/>
-            <button type="object" string="Open Document" icon="fa-external-link" help="Open Related Document" name="action_open_related_document"/>
+            <field name="currency_id" invisible="1"/>
+            <field name="company_currency_id" invisible="1"/>
+            <field name="company_id" invisible="1"/>
         </tree>
     </field>
 </record>
@@ -34,7 +33,7 @@
     <field name="model">account.move.line</field>
     <field eval="99" name="priority"/>
     <field name="mode">primary</field>
-    <field name="inherit_id" ref="account_payment_group.view_move_line_tree"/>
+    <field name="inherit_id" ref="view_move_line_tree_from_group"/>
     <field name="arch" type="xml">
         <field name="amount_residual" position="replace">
             <field name="payment_group_matched_amount" string="Paid Amount" sum="Total"/>
@@ -45,12 +44,12 @@
     </field>
 </record>
 
-<record id="view_move_form" model="ir.ui.view">
+<record id="view_move_form_from_group" model="ir.ui.view">
     <field name="name">account.move</field>
     <field name="model">account.move</field>
     <field name="inherit_id" ref="account.view_move_form"/>
     <field name="arch" type="xml">
-        <group id="header_left_group">
+        <group id="header_left_group" position="inside">
             <!-- only allow pay now if manual method available -->
             <field name="pay_now_journal_id" attrs="{'invisible': [('move_type', 'not in', ('in_invoice', 'in_refund'))]}" options="{'no_create': True}" domain="[('company_id', '=', company_id), ('type', 'in', ['bank', 'cash']), ('outbound_payment_method_ids.code', '=', 'manual')]" groups="account_payment_group.group_pay_now_vendor_invoices"/>
             <field name="pay_now_journal_id" attrs="{'invisible': [('move_type', 'not in', ('out_invoice', 'out_refund'))]}" options="{'no_create': True}" domain="[('company_id', '=', company_id), ('type', 'in', ['bank', 'cash']), ('inbound_payment_method_ids.code', '=', 'manual')]" groups="account_payment_group.group_pay_now_customer_invoices"/>
@@ -61,7 +60,7 @@
         </button>
 
         <field name="invoice_payments_widget" position="after">
-            <field name="payment_group_ids" attrs="{'invisible':True}"/>
+            <field name="payment_group_ids" invisible="1"/>
             <button type="object"  name="action_view_payment_groups"
                     class="oe_link" string="View Payments"
                     colspan="2"

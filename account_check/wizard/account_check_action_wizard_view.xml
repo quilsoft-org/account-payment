@@ -7,7 +7,7 @@
         <field name="arch" type="xml">
             <form string="Check Action">
                 <field name="action_type" invisible="1"/>
-                <group >
+                <group>
                     <field name="date"/>
                 </group>
                 <footer>
@@ -25,5 +25,32 @@
         <field name="view_mode">form</field>
         <field name="target">new</field>
     </record>
+
+    <record model="ir.ui.view" id="account_check_payment_action_wizard_form_view">
+        <field name="name">account.check.payment.action.wizard.form</field>
+        <field name="model">account.check.payment.action.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Check Action">
+                <p>La siguiente acción no tiene posibilidad de revertirse. Esta seguro?</p>
+                <footer>
+                    <button string="Confirm" name="action_validate" type="object" class="oe_highlight"/>
+                    or
+                    <button string="Cancel" class="oe_link" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+        <record id="action_account_check_payment_action_wizard" model="ir.actions.act_window">
+            <field name="name">Validate Payment Action</field>
+            <field name="res_model">account.check.payment.action.wizard</field>
+            <field name="view_id" ref="account_check_payment_action_wizard_form_view"/>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+            <field name="binding_model_id" ref="account_payment_group.model_account_payment_group" />
+            <field name="binding_model_id" ref="account_payment_group.model_account_payment_group" />
+            <field name="binding_view_types">list</field>
+    </record>
+
 
 </odoo>

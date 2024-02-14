@@ -37,6 +37,10 @@
         <field name="category_id" ref="base.module_category_hidden"/>
         <field name="name">Allow pay now on vendor invoices</field>
     </record>
+    <record model="res.groups" id="group_allow_payment_actions">
+        <field name="category_id" ref="base.module_category_hidden"/>
+        <field name="name">Allow actions on payment lines</field>
+    </record>
 
 </data>
 <data>

@@ -27,8 +27,11 @@ def post_init_hook(cr, registry):
             'company_id': payment.company_id.id,
             'partner_type': payment.partner_type,
             'partner_id': payment.partner_id.id,
-            'payment_date': payment.date,
-            'communication': payment.name,
+            'payment_date': payment.move_id.date,
+            # en realidad aparentemente odoo no migra nada a communication
+            # tal vez a este campo deberíamos llevar el viejo name que ahora
+            # name es la secuencia
+            'communication': payment.move_id.payment_reference,
             'payment_ids': [(4, payment.id, False)],
             'state': _state,
         })
